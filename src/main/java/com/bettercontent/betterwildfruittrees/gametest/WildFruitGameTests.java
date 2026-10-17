@@ -33,10 +33,20 @@ public final class WildFruitGameTests {
         var level = h.getLevel();
         var pos = h.absolutePos(new BlockPos(4, 2, 4));
         level.setBlock(pos.below(), Blocks.DIRT.defaultBlockState(), 2);
+        var nativeTapering = java.util.Map.ofEntries(
+            java.util.Map.entry("apple", 0.4F), java.util.Map.entry("mangosteen", 0.3F),
+            java.util.Map.entry("persimmon", 0.3F), java.util.Map.entry("hawberry", 0.3F),
+            java.util.Map.entry("kiwi", 0.2F), java.util.Map.entry("orange", 0.2F),
+            java.util.Map.entry("durian", 0.4F), java.util.Map.entry("mango", 0.2F),
+            java.util.Map.entry("bayberry", 0.3F), java.util.Map.entry("pear", 0.4F),
+            java.util.Map.entry("peach", 0.3F), java.util.Map.entry("fig", 0.45F), java.util.Map.entry("lychee", 0.25F));
         for (var entry : WildFruitPolicy.ENERGY.entrySet()) {
             Species tree = species(entry.getKey());
             h.assertTrue(tree.isValid(), "Missing species " + entry.getKey());
             h.assertTrue(tree.getSignalEnergy() == entry.getValue(), "Wrong energy: " + entry.getKey());
+            float originalTapering = nativeTapering.get(entry.getKey());
+            h.assertTrue(tree.getTapering() == originalTapering, "Worldgen/InflatorNode tapering changed: " + entry.getKey());
+            h.assertTrue(WildFruitPolicy.growthTapering(tree.getRegistryName().toString(), tree.getTapering()) == originalTapering / 2.5F, "Wrong branch growth tapering: " + entry.getKey());
             h.assertTrue(tree.getGrowthLogicKit().getEnergy(new com.ferreusveritas.dynamictrees.growthlogic.context.PositionalSpeciesContext(level, pos, tree)) == entry.getValue(), "Native growth logic did not consume larger energy");
             h.assertTrue(!tree.shouldDropSeeds() && tree.getVoluntaryDrops(level, pos, 15).isEmpty(), "Seed drop route survived");
             h.assertTrue(tree.getPrimitiveSaplingRecipes().isEmpty(), "Conversion survived");
@@ -57,6 +67,7 @@ public final class WildFruitGameTests {
         h.assertTrue(Species.REGISTRY.get(new ResourceLocation("dynamictrees:birch")).getSignalEnergy() == 14F, "Ordinary birch changed");
         Species oak = Species.REGISTRY.get(new ResourceLocation("dynamictrees:oak"));
         h.assertTrue(oak.plantSapling(level, pos, false), "Ordinary oak planting was blocked");
+        h.assertTrue(WildFruitPolicy.growthTapering(oak.getRegistryName().toString(), oak.getTapering()) == oak.getTapering(), "Ordinary growth tapering changed");
         h.succeed();
     }
 

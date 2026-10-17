@@ -29,7 +29,7 @@ def expected_warning(line):
     # from an existing non-null value or an ERROR, nor any other logger's diagnostics.
     if re.search(r"\[(?:main|Server thread)/WARN\] \[ne\.mi\.co\.ForgeConfigSpec/CORE\]: Incorrect key [A-Za-z0-9_.]+ was corrected from null to its default, .+\. ?$", line):
         return True
-    if re.search(r"\[(?:main|Server thread)/WARN\] \[ne\.mi\.co\.ForgeConfigSpec/CORE\]: Configuration file (?:[^ ]*/)?(?:dynamictrees-(?:common|server)|fruitsdelight-(?:common|client)|farmersdelight-(?:common|server)|forge-server|patchouli-client)\.toml is not correct\. Correcting$", line):
+    if re.search(r"\[(?:main|Server thread)/WARN\] \[ne\.mi\.co\.ForgeConfigSpec/CORE\]: Configuration file (?:[^ ]*/)?(?:dynamictrees-(?:common|server)|fruitsdelight-(?:common|client)|farmersdelight-(?:common|server)|forge-server|patchouli-client|l2library-common)\.toml is not correct\. Correcting$", line):
         return True
     if re.search(r"\[main/WARN\] \[ne\.mi\.fm\.lo\.FMLConfig/CORE\]: Configuration file .*/config/fml\.toml is not correct\. Correcting$", line):
         return True

@@ -24,11 +24,6 @@ public abstract class SpeciesMixin {
     private void wildFruit$energy(CallbackInfoReturnable<Float> cir) {
         if (wildFruit$protected()) cir.setReturnValue(WildFruitPolicy.energy(wildFruit$id(), cir.getReturnValue()));
     }
-    @Inject(method = "getTapering", at = @At("RETURN"), cancellable = true)
-    private void wildFruit$tapering(CallbackInfoReturnable<Float> cir) {
-        // Longer growth paths must not consume the existing trunk-radius budget 2.5x sooner.
-        if (wildFruit$protected()) cir.setReturnValue(cir.getReturnValue() / 2.5F);
-    }
     @Inject(method = "getSoilLongevity", at = @At("RETURN"), cancellable = true)
     private void wildFruit$longevity(Level level, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
         if (wildFruit$protected()) cir.setReturnValue(cir.getReturnValue() * WildFruitPolicy.SOIL_LONGEVITY_MULTIPLIER);

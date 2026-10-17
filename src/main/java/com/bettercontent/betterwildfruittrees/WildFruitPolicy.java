@@ -49,6 +49,9 @@ public final class WildFruitPolicy {
         return id.startsWith("dtfruitsdelight:") && id.endsWith("_sapling")
             && ENERGY.containsKey(id.substring("dtfruitsdelight:".length(), id.length() - "_sapling".length()));
     }
+    public static float growthTapering(String id, float original) {
+        return protectsSpecies(id) ? original / 2.5F : original;
+    }
     public static float hardness(float original) {
         return Math.max(MIN_BRANCH_HARDNESS, original * HARDNESS_MULTIPLIER);
     }

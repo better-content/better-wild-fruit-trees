@@ -37,8 +37,9 @@ Bumblezone, or other Better Content mod is required. Java 17 is required.
 | Durian, mango | 40 |
 
 These are growth budgets, **not heights in blocks or guaranteed mature dimensions**.
-Protected species use 1/2.5 of their original tapering and three times their native
-biome-adjusted soil longevity to support the longer growth paths. Native family trunk
+Subsequent branch growth uses 1/2.5 of the protected species' original tapering;
+the species tapering used by worldgen branch inflation stays unchanged. Protected
+species use three times their native biome-adjusted soil longevity to support the longer growth paths. Native family trunk
 thickness caps, space, light, soil fertility, seasonal behavior, and growth logic still
 apply. The mod does not make trees grow indefinitely or change their growth-rate setting.
 
@@ -116,7 +117,7 @@ upstream biome-database mutation against reload; neither those defaults nor the 
 server properties are shipped. Concurrent exploration during reload is not accepted by
 this test suite.
 
-The reobfuscated runtime JAR is `build/libs/better-wild-fruit-trees-0.1.0.jar`; GameTest
+The reobfuscated runtime JAR is `build/libs/better-wild-fruit-trees-0.1.1.jar`; GameTest
 classes and structures are excluded. Development tests do not constitute full-modpack,
 client-rendering, landscape-size, or gameplay-performance acceptance.
 

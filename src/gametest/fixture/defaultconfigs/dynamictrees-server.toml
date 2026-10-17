@@ -1,0 +1,5 @@
+# GameTest isolation only: manual native tree fixtures do not need chunk decoration.
+# Avoid racing upstream DT biome database reload against asynchronous world generation.
+# This file is outside main resources and is never shipped in the mod JAR.
+[world]
+worldGen = false

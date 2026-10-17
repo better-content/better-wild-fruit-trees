@@ -1,0 +1,22 @@
+name: Verify
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew --no-daemon clean verifyFull stageRuntimeJar
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: better-wild-fruit-trees
+          path: build/libs/better-wild-fruit-trees-*.jar
+          retention-days: 7

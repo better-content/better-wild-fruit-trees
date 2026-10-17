@@ -1,0 +1,10 @@
+.gradle/
+.kotlin/
+build/
+run/
+run-gametest/
+.idea/
+*.iml
+.classpath
+.project
+.settings/

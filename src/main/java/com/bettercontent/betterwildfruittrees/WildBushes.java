@@ -35,8 +35,14 @@ public final class WildBushes {
         return !(player instanceof net.minecraftforge.common.util.FakePlayer);
     }
     public static boolean appropriateAxe(ItemStack tool) {
+        // TCon extends TieredItem, but its superclass tier is a dummy: the actual tier is per-stack.
+        if (net.minecraftforge.fml.ModList.get().isLoaded("tconstruct")
+            && com.bettercontent.betterwildfruittrees.compat.TConstructAxes.handles(tool))
+            return com.bettercontent.betterwildfruittrees.compat.TConstructAxes.appropriateAxe(tool);
         if (!tool.canPerformAction(net.minecraftforge.common.ToolActions.AXE_DIG) || !(tool.getItem() instanceof TieredItem tiered)) return false;
-        var tier = tiered.getTier();
-        return tier == Tiers.DIAMOND || TierSortingRegistry.getTiersLowerThan(tier).contains(Tiers.DIAMOND);
+        return atLeastDiamond(tiered.getTier());
+    }
+    public static boolean atLeastDiamond(net.minecraft.world.item.Tier tier) {
+        return tier != null && (tier == Tiers.DIAMOND || TierSortingRegistry.getTiersLowerThan(tier).contains(Tiers.DIAMOND));
     }
 }

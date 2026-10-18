@@ -124,8 +124,8 @@ def classify_log(text):
 def check_log(text):
     findings = [item['record'] for item in classify_log(text) if item['blocking']]
     counts = re.findall(r"All (\d+) required tests passed", text)
-    if not counts or int(counts[-1]) != 11:
-        findings.append("Missing complete native GameTest success (exactly eleven required tests)")
+    if not counts or int(counts[-1]) != 12:
+        findings.append("Missing complete native GameTest success (exactly twelve required tests)")
     return findings
 
 
@@ -133,6 +133,8 @@ def check_jar(archive):
     names = archive.namelist()
     assert len(names) == len(set(names)), "Duplicate archive entries"
     assert not any("/gametest/" in name or name.startswith("gameteststructures/") for name in names), "Shipping test fixture"
+    assert not any(name.startswith("slimeknights/") for name in names), "Bundling optional upstream implementation"
+    assert "com/bettercontent/betterwildfruittrees/compat/TConstructAxes.class" in names, "Missing optional typed tier adapter"
     manifest = archive.read("META-INF/MANIFEST.MF").decode()
     assert "MixinConfigs: better_wild_fruit_trees.mixins.json" in manifest, "Missing Mixin manifest"
     refmap = json.loads(archive.read(REFMAP))

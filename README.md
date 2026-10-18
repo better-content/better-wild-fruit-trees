@@ -98,8 +98,15 @@ but **not** from planting restrictions. High hardness still applies to them. Mac
 masquerading as real players are subject to the normal player rule;
 this is **direct** player-breaking protection, not indestructibility. Removing supporting
 soil, hoe conversion, fluid changes and other indirect native terrain updates can still
-uproot bushes; supporting terrain is not assigned an axe requirement. Unregistered/custom non-`TieredItem` tools
-are conservatively rejected because they expose no supported Forge tier identity.
+uproot bushes; supporting terrain is not assigned an axe requirement.
+
+Optional Tinkers’ Construct **3.11.2.166** / Mantle **1.11.104** axes use their actual
+per-stack `ToolStats.HARVEST_TIER` through the public typed API, not the dummy tier inherited
+from `TieredItem`. Material changes and native modifier upgrades therefore affect permission.
+The adapter copies the tool view, does not initialize blank tools, rejects broken tools, and
+still requires the tool’s dynamic `AXE_DIG` action. TConstruct and Mantle are not required
+or bundled. Other unregistered/custom tools without a supported Forge tier identity remain
+conservatively rejected.
 
 ## Wild berry fields
 
@@ -156,8 +163,12 @@ this test suite.
 
 The reobfuscated runtime JAR is `build/libs/better-wild-fruit-trees-0.1.1.jar`; GameTest
 classes and structures are excluded. The default native fixture additionally includes pinned
-Ars Nouveau 4.12.7, Curios and GeckoLib to exercise optional sourceberry. Use
-`-PwithoutArsFixture` for the companion absent-Ars gate. Prior GameTest worlds are retained
+Ars Nouveau 4.12.7, Curios and GeckoLib to exercise optional sourceberry, plus
+TConstruct 3.11.2.166 and Mantle 1.11.104 to exercise native hand/broad axes, material tiers,
+native diamond modifier addition/removal, broken/blank/pickaxe negatives, real-player
+removal/progress, and ordinary-tree/machine controls. Use
+`-PwithoutTConFixture -PwithoutArsFixture` for the clean companion absent-optional-mod gate.
+Both flags affect only fixture runtime dependencies; the production integrations stay optional. Prior GameTest worlds are retained
 under `run-gametest/retained-worlds/` before each fresh native invocation.
 Local Gradle invocations must hold the workspace POSIX `fcntl` Forge cache lock for
 the complete child-process lifetime (canonical `test-control.main.kts run source --repo`

@@ -136,6 +136,19 @@ public final class WildBushGameTests {
         h.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void optionalTConstructAxesUseNativePerStackTier(GameTestHelper h) {
+        for (String mod : new String[]{"tconstruct", "ars_nouveau"}) {
+            String expected = System.getProperty("better_wild_fruit_trees.fixture." + mod);
+            h.assertTrue(expected != null && Boolean.parseBoolean(expected) == net.minecraftforge.fml.ModList.get().isLoaded(mod), "Wrong optional fixture dependency presence " + mod);
+        }
+        if (net.minecraftforge.fml.ModList.get().isLoaded("tconstruct")) TConstructAxeProof.run(h);
+        else {
+            h.assertTrue(WildBushes.appropriateAxe(new ItemStack(Items.DIAMOND_AXE)), "Absent optional integration broke vanilla axes");
+            h.succeed();
+        }
+    }
+
     @GameTest(template = "field", timeoutTicks = 100)
     public static void configuredWorldgenMakesSparseIrregularFields(GameTestHelper h) {
         var level = h.getLevel();

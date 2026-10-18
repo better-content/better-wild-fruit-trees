@@ -23,6 +23,8 @@ minecraft {
         create("gameTestServer") {
             workingDirectory(project.file("run-gametest"))
             property("forge.enabledGameTestNamespaces", "better_wild_fruit_trees")
+            property("better_wild_fruit_trees.fixture.tconstruct", (!project.hasProperty("withoutTConFixture")).toString())
+            property("better_wild_fruit_trees.fixture.ars_nouveau", (!project.hasProperty("withoutArsFixture")).toString())
             arg("--nogui")
         }
     }
@@ -40,6 +42,13 @@ dependencies {
     runtimeOnly(fg.deobf("curse.maven:farmers-delight-398521:8007609"))
     // Development fixture: DT's optional guide recipe references Patchouli's book item.
     runtimeOnly(fg.deobf("curse.maven:patchouli-306770:7731017"))
+    // Optional public API integration. Keep these exact pins aligned with the native fixture.
+    compileOnly(fg.deobf("curse.maven:tconstruct-74072:7449219"))
+    compileOnly(fg.deobf("curse.maven:mantle-74924:7563777"))
+    if (!project.hasProperty("withoutTConFixture")) {
+        runtimeOnly(fg.deobf("curse.maven:tconstruct-74072:7449219"))
+        runtimeOnly(fg.deobf("curse.maven:mantle-74924:7563777"))
+    }
     // Optional integration exercised by the default native fixture, never a runtime requirement.
     if (!project.hasProperty("withoutArsFixture")) {
         runtimeOnly(fg.deobf("curse.maven:ars-nouveau-401955:6688854"))

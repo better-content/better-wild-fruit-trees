@@ -2,6 +2,7 @@
 
 A standalone Forge 1.20.1 integration that makes Fruits Delight's dynamic fruit trees
 large, bountiful, fixed-location food resources rather than portable orchard stock.
+It also protects wild berry bushes and generates broad, irregular berry fields.
 
 ## Scope and authority
 
@@ -87,14 +88,50 @@ species instead of applying the policy to its shared oak/birch/spruce/jungle woo
 No chunk is requested merely to classify mining resistance. Lookup-budget exhaustion or
 an unavailable root leaves native hardness unchanged.
 
-This makes early chopping impractical and accidental felling unlikely; it is **not a
-hard tool-tier prohibition or indestructibility**. Fire, explosions, root destruction,
-and third-party machine removal retain their native behavior.
+Normal player breaking requires an axe supporting Forge's `AXE_DIG` action with a
+registered diamond-or-higher tier (Forge tier ordering, not item IDs). A server break-event
+restriction prevents removal; client/server mining progress is zero with unsuitable tools.
+The same rule covers the berry bushes below, whose hardness is 80. Picking needs no axe.
+Fire, explosions, non-player root destruction, and native third-party machine removal remain unchanged;
+Forge `FakePlayer` machine miners are explicitly exempt from the breaking/progress gate,
+but **not** from planting restrictions. High hardness still applies to them. Machines
+masquerading as real players are subject to the normal player rule;
+this is **direct** player-breaking protection, not indestructibility. Removing supporting
+soil, hoe conversion, fluid changes and other indirect native terrain updates can still
+uproot bushes; supporting terrain is not assigned an axe requirement. Unregistered/custom non-`TieredItem` tools
+are conservatively rejected because they expose no supported Forge tier identity.
+
+## Wild berry fields
+
+The explicit bush inventory is `minecraft:sweet_berry_bush`,
+`fruitsdelight:blueberry_bush`, `fruitsdelight:cranberry_bush`, and optional
+`ars_nouveau:sourceberry_bush`. Sourceberry is optional; no Ars classes are referenced.
+Glow berries (cave vines), Twilight Forest torchberries (hanging plants), tree
+bayberry/hawberry, pineapple, melons and other non-bush crops are excluded.
+
+All fruit ages use mature physical outline geometry and full-grown foliage models.
+Age remains native fruit readiness: native picking, fruit reset, random ripening and
+bonemeal regrowth continue without shrinking the plant. Native per-plant yields are
+unchanged, not multiplied by eight. A 10–14-plant field therefore supplies roughly
+15–35 berries per ripe harvest, varying by species and random native yield.
+
+Configured-feature overrides replace only the four bush patch definitions. Existing biome
+selection and patch frequency remain native. Each field targets 10–14 successful plants
+with irregular triangular offsets over a 29×29-block footprint and sparse spacing; poor
+terrain can yield fewer. There is no chunk scanning or existing-world backfill. Optional
+Ars overrides store a string registry ID, safely doing nothing when the mod is absent.
+
+BlockItem placement (including direct machine/fake-player item use) and Forge entity
+placement reject bush creation. Berry-to-flower-pot use is blocked. Edible berries and
+recipes remain intact; bush harvest food is not filtered from loot. Existing planted
+bushes become protected resources in place. Commands, structure cloning, world-edit code,
+and machines that directly write blocks without Forge placement events are outside this
+propagation guard; native destruction by machines/fire/explosions is intentionally preserved.
 
 ## Explicitly unchanged
 
 - Ordinary oak, birch, spruce, jungle, and other non-target species.
-- Fruits Delight's bushes, pineapple, melons, and other non-tree plants.
+- Pineapple, melons, non-bush vines/crops and other non-target plants.
 - Global Dynamic Trees growth, worldgen density, and authored JoCodes.
 - Ordinary oak planting stock and the independent Bumblezone cultivar system.
 
@@ -118,7 +155,14 @@ server properties are shipped. Concurrent exploration during reload is not accep
 this test suite.
 
 The reobfuscated runtime JAR is `build/libs/better-wild-fruit-trees-0.1.1.jar`; GameTest
-classes and structures are excluded. Development tests do not constitute full-modpack,
+classes and structures are excluded. The default native fixture additionally includes pinned
+Ars Nouveau 4.12.7, Curios and GeckoLib to exercise optional sourceberry. Use
+`-PwithoutArsFixture` for the companion absent-Ars gate. Prior GameTest worlds are retained
+under `run-gametest/retained-worlds/` before each fresh native invocation.
+Local Gradle invocations must hold the workspace POSIX `fcntl` Forge cache lock for
+the complete child-process lifetime (canonical `test-control.main.kts run source --repo`
+is preferred); BSD `flock` is not interoperable with the canonical Java lock.
+Development tests do not constitute full-modpack,
 client-rendering, landscape-size, or gameplay-performance acceptance.
 
 ## License

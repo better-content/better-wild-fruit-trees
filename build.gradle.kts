@@ -40,6 +40,12 @@ dependencies {
     runtimeOnly(fg.deobf("curse.maven:farmers-delight-398521:8007609"))
     // Development fixture: DT's optional guide recipe references Patchouli's book item.
     runtimeOnly(fg.deobf("curse.maven:patchouli-306770:7731017"))
+    // Optional integration exercised by the default native fixture, never a runtime requirement.
+    if (!project.hasProperty("withoutArsFixture")) {
+        runtimeOnly(fg.deobf("curse.maven:ars-nouveau-401955:6688854"))
+        runtimeOnly(fg.deobf("curse.maven:curios-309927:6418456"))
+        runtimeOnly(fg.deobf("curse.maven:geckolib-388172:7553267"))
+    }
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
@@ -81,8 +87,15 @@ val prepareGameTestFiles by tasks.registering(Copy::class) {
     from("src/gametest/fixture")
     into("run-gametest")
 }
-val resetGameTestWorld by tasks.registering(Delete::class) {
-    delete("run-gametest/world")
+val resetGameTestWorld by tasks.registering {
+    doLast {
+        val world = file("run-gametest/world")
+        if (world.exists()) {
+            val retained = file("run-gametest/retained-worlds/${System.currentTimeMillis()}")
+            retained.parentFile.mkdirs()
+            check(world.renameTo(retained)) { "Could not retain previous GameTest world" }
+        }
+    }
 }
 tasks.matching { it.name.startsWith("prepareRunGameTestServer") }.configureEach {
     dependsOn(syncGameTestStructures, prepareGameTestFiles, resetGameTestWorld)

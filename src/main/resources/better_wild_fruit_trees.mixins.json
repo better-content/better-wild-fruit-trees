@@ -4,6 +4,6 @@
   "package": "com.bettercontent.betterwildfruittrees.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "better_wild_fruit_trees.refmap.json",
-  "mixins": ["SpeciesMixin", "GrowSignalMixin", "FruitBlockMixin", "FruitGenFeatureMixin", "SeedMixin", "TransformMixin", "StaffMixin", "BranchHardnessMixin", "RecipeManagerMixin"],
+  "mixins": ["SpeciesMixin", "GrowSignalMixin", "FruitBlockMixin", "FruitGenFeatureMixin", "SeedMixin", "TransformMixin", "StaffMixin", "BranchHardnessMixin", "RecipeManagerMixin", "BushStateMixin", "BushPlantingMixin"],
   "injectors": {"defaultRequire": 1}
 }

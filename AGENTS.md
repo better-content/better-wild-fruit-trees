@@ -9,7 +9,8 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
 - Keep JoCodes, tree worldgen selection/density, global DT growth settings, ordinary trees,
   non-bush fruit plants and Bumblezone cultivars unchanged. Explicit bush scope: vanilla sweet
   berry, Fruits Delight blueberry/cranberry, and optional Ars Nouveau sourceberry. Their native
-  per-plant fruit yields/regrowth remain; abundance comes from broad 10–14-plant fields.
+  per-plant fruit yields/regrowth remain; abundance comes from broad 30–42-plant fields
+  over a 47×47 footprint, centered on the decoration chunk to keep generation writes local.
 - Native API/mixin targets are pinned to DT 1.4.10, DT Fruits Delight 1.0.0 and Fruits Delight 1.1.3.
   Optional TConstruct public APIs are pinned to 3.11.2.166 / Mantle 1.11.104.
   Changing a pin requires native tests; do not relax required injections to accommodate drift.

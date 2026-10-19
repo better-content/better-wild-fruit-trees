@@ -119,14 +119,18 @@ bayberry/hawberry, pineapple, melons and other non-bush crops are excluded.
 All fruit ages use mature physical outline geometry and full-grown foliage models.
 Age remains native fruit readiness: native picking, fruit reset, random ripening and
 bonemeal regrowth continue without shrinking the plant. Native per-plant yields are
-unchanged, not multiplied by eight. A 10–14-plant field therefore supplies roughly
-15–35 berries per ripe harvest, varying by species and random native yield.
+unchanged, not multiplied by eight. Abundance comes from **30–42 plants per field**, not
+increased fruit per plant; actual harvest totals still vary by species and native yield.
 
 Configured-feature overrides replace only the four bush patch definitions. Existing biome
-selection and patch frequency remain native. Each field targets 10–14 successful plants
-with irregular triangular offsets over a 29×29-block footprint and sparse spacing; poor
-terrain can yield fewer. There is no chunk scanning or existing-world backfill. Optional
-Ars overrides store a string registry ID, safely doing nothing when the mod is absent.
+selection and patch frequency remain native. Each field targets 30–42 successful plants
+with irregular triangular offsets over a **47×47-block footprint** and sparse spacing; poor
+terrain can yield fewer. The target count is tripled from 10–14 and the footprint area is
+about 2.6 times the former 29×29 area. Placement gets 288 bounded attempts. Fields are centered
+on their decoration chunk so writes stay within its 3×3 chunk neighborhood; spacing checks
+skip unavailable neighboring chunks rather than requesting far chunks. There is no chunk
+scanning or existing-world backfill. Optional Ars overrides store a string registry ID, safely
+doing nothing when the mod is absent.
 
 BlockItem placement (including direct machine/fake-player item use) and Forge entity
 placement reject bush creation. Berry-to-flower-pot use is blocked. Edible berries and

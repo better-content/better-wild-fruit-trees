@@ -152,26 +152,42 @@ public final class WildBushGameTests {
     @GameTest(template = "field", timeoutTicks = 100)
     public static void configuredWorldgenMakesSparseIrregularFields(GameTestHelper h) {
         var level = h.getLevel();
-        var origin = h.absolutePos(new BlockPos(20, 2, 20));
-        for (int x = -16; x <= 16; x++) for (int z = -16; z <= 16; z++) {
+        var requested = h.absolutePos(new BlockPos(32, 2, 32));
+        var chunk = new net.minecraft.world.level.ChunkPos(requested);
+        var origin = new BlockPos(chunk.getMiddleBlockX(), requested.getY(), chunk.getMiddleBlockZ());
+        for (int x = -24; x <= 24; x++) for (int z = -24; z <= 24; z++) {
             level.setBlock(origin.offset(x, -1, z), Blocks.GRASS_BLOCK.defaultBlockState(), 2);
             for (int y = 0; y <= 5; y++) level.setBlock(origin.offset(x, y, z), Blocks.AIR.defaultBlockState(), 2);
         }
         var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
+        var chunks = new java.util.ArrayList<net.minecraft.world.level.chunk.ChunkAccess>();
+        for (int z = -1; z <= 1; z++) for (int x = -1; x <= 1; x++) chunks.add(level.getChunk(chunk.x + x, chunk.z + z));
+        // Exercise the native decoration write/read boundary, not just unrestricted ServerLevel placement.
+        var region = new net.minecraft.server.level.WorldGenRegion(level, chunks, net.minecraft.world.level.chunk.ChunkStatus.FEATURES, 1);
         for (String id : new String[]{"minecraft:patch_berry_bush", "fruitsdelight:blueberry_bush", "fruitsdelight:cranberry_bush", "ars_nouveau:patch_berry"}) {
-            for (int x=-14;x<=14;x++) for(int z=-14;z<=14;z++) level.setBlock(origin.offset(x,0,z), Blocks.AIR.defaultBlockState(), 2);
             var feature = registry.get(new ResourceLocation(id));
             h.assertTrue(feature.feature() instanceof WildBushField, "Configured feature not overridden " + id);
             boolean present = !id.startsWith("ars_nouveau:") || net.minecraftforge.fml.ModList.get().isLoaded("ars_nouveau");
-            h.assertTrue(feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(112), origin) == present, "Native/optional feature placement " + id);
-            int count = 0, minX = 99, maxX = -99, minZ = 99, maxZ = -99;
-            for (int x=-14;x<=14;x++) for(int z=-14;z<=14;z++) if (WildBushes.isBush(level.getBlockState(origin.offset(x,0,z)))) {
-                count++; minX=Math.min(minX,x); maxX=Math.max(maxX,x); minZ=Math.min(minZ,z); maxZ=Math.max(maxZ,z);
-                for (int dx=-1;dx<=1;dx++) for(int dz=-1;dz<=1;dz++) if(dx!=0 || dz!=0)
-                    h.assertTrue(!WildBushes.isBush(level.getBlockState(origin.offset(x+dx,0,z+dz))), "Field became a dense hedge " + id);
+            boolean widened = false;
+            for (int[] corner : new int[][]{{0, 0}, {15, 0}, {0, 15}, {15, 15}}) {
+                for (int x=-24;x<=24;x++) for(int z=-24;z<=24;z++) level.setBlock(origin.offset(x,0,z), Blocks.AIR.defaultBlockState(), 2);
+                var edgeOrigin = new BlockPos(chunk.getMinBlockX() + corner[0], origin.getY(), chunk.getMinBlockZ() + corner[1]);
+                var random = net.minecraft.util.RandomSource.create(112 + corner[0] + 16 * corner[1]);
+                h.assertTrue(feature.place(region, level.getChunkSource().getGenerator(), random, edgeOrigin) == present, "Native/optional feature placement " + id);
+                int count = 0, minX = 99, maxX = -99, minZ = 99, maxZ = -99;
+                for (int x=-24;x<=24;x++) for(int z=-24;z<=24;z++) if (WildBushes.isBush(level.getBlockState(origin.offset(x,0,z)))) {
+                    count++; minX=Math.min(minX,x); maxX=Math.max(maxX,x); minZ=Math.min(minZ,z); maxZ=Math.max(maxZ,z);
+                    h.assertTrue(Math.abs(x) <= 23 && Math.abs(z) <= 23, "Field escaped its 47x47 footprint " + id);
+                    var state = level.getBlockState(origin.offset(x,0,z));
+                    h.assertTrue(state.equals(WildBushes.mature(state)), "Field bush was not ripe " + id);
+                    for (int dx=-1;dx<=1;dx++) for(int dz=-1;dz<=1;dz++) if(dx!=0 || dz!=0)
+                        h.assertTrue(!WildBushes.isBush(level.getBlockState(origin.offset(x+dx,0,z+dz))), "Field became a dense hedge " + id);
+                }
+                h.assertTrue(present ? count >= 30 && count <= 42 : count == 0, "Wrong field aggregate count " + id + " " + count);
+                if (present) h.assertTrue(maxX-minX >= 16 && maxZ-minZ >= 16, "Field too compact " + id);
+                widened |= maxX-minX > 28 && maxZ-minZ > 28;
             }
-            h.assertTrue(present ? count >= 10 && count <= 14 : count == 0, "Wrong field aggregate count " + id + " " + count);
-            if (present) h.assertTrue(maxX-minX >= 8 && maxZ-minZ >= 8, "Field too compact " + id);
+            if (present) h.assertTrue(widened, "Fields never exceeded their old 29x29 footprint " + id);
         }
         var absent = new WildBushField().place(new net.minecraft.world.level.levelgen.feature.FeaturePlaceContext<>(java.util.Optional.empty(), level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(1), origin, new WildBushField.Config("missing_mod:absent_bush")));
         h.assertTrue(!absent, "Optional absent bush was not safe");

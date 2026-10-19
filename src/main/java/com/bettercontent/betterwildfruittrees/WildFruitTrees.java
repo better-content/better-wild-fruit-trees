@@ -56,6 +56,19 @@ public final class WildFruitTrees {
         if (WildBushes.restrictPlayer(event.getPlayer()) && WildBushes.protectedResource(event.getState(), event.getLevel(), event.getPos()) &&
             !WildBushes.appropriateAxe(event.getPlayer().getMainHandItem())) event.setCanceled(true);
     }
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onBushGrowth(net.minecraftforge.event.level.BlockEvent.CropGrowEvent.Pre event) {
+        if (event.getResult() != Event.Result.DEFAULT || !WildBushes.isBush(event.getState())) return;
+        String id = ForgeRegistries.BLOCKS.getKey(event.getState().getBlock()).toString();
+        boolean grow = event.getLevel().getRandom().nextDouble() < ProductionRates.bushGrowthChance(id);
+        event.setResult(grow ? Event.Result.ALLOW : Event.Result.DENY);
+    }
+    @SubscribeEvent
+    public void onChunkLoad(net.minecraftforge.event.level.ChunkEvent.Load event) {
+        // Also cover reattaching an existing chunk instance without deserializing its roots again.
+        if (!event.getLevel().isClientSide() && event.getChunk() instanceof net.minecraft.world.level.chunk.LevelChunk chunk)
+            chunk.getBlockEntities().values().forEach(TreeFruitBudget::resume);
+    }
     @SubscribeEvent
     public void onTrade(PlayerInteractEvent.EntityInteract event) {
         if (!event.getLevel().isClientSide() && event.getTarget() instanceof AbstractVillager villager)

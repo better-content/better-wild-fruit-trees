@@ -80,6 +80,7 @@ public final class WildFruitGameTests {
             Species tree = species(name);
             level.setBlock(root, Blocks.DIRT.defaultBlockState(), 2);
             h.assertTrue(tree.placeRootyDirtBlock(level, root, 15), "Root placement failed " + name);
+            h.assertTrue(level.getBlockEntity(root) instanceof com.ferreusveritas.dynamictrees.block.entity.SpeciesBlockEntity, "Protected species must own persistent production data " + name);
             for (var branch : new com.ferreusveritas.dynamictrees.block.branch.BranchBlock[]{tree.getFamily().getBranch().orElseThrow(), tree.getFamily().getStrippedBranch().orElseThrow()}) {
                 branch.setRadius(level, trunk, 1, Direction.DOWN, 2);
                 var state = level.getBlockState(trunk);
@@ -115,7 +116,7 @@ public final class WildFruitGameTests {
             level.setBlock(pos, mature, 2);
             var drops = Block.getDrops(mature, level, pos, null);
             int count = drops.stream().filter(stack -> stack.is(fruit.getItemStack().getItem())).mapToInt(ItemStack::getCount).sum();
-            h.assertTrue(count >= 8 && count % 8 == 0, "Mature bounty missing " + name + ": " + count);
+            h.assertTrue(count == 8, "Pinned fruit must yield exactly eight for rate accounting " + name + ": " + count);
             h.assertTrue(drops.stream().allMatch(stack -> stack.getCount() <= stack.getMaxStackSize()), "Oversized stack");
             var young = mature.setValue(fruit.getAgeProperty(), 0);
             h.assertTrue(Block.getDrops(young, level, pos, null).isEmpty(), "Immature harvest " + name);
@@ -179,6 +180,12 @@ public final class WildFruitGameTests {
             var branch = tree.getFamily().getBranch().orElseThrow();
             branch.setRadius(level, root.above(), 8, Direction.DOWN, 2);
             branch.setRadius(level, root.above(2), 1, Direction.DOWN, 2);
+            if (id.endsWith(":pear")) {
+                var credit = new net.minecraft.nbt.CompoundTag();
+                credit.putLong("credit", ProductionRates.FRUIT_INTERVAL);
+                credit.putLong("lastTick", level.getGameTime());
+                level.getBlockEntity(root).getPersistentData().put(TreeFruitBudget.KEY, credit);
+            }
             CountingFruitFeature counter = new CountingFruitFeature();
             var config = counter.createDefaultConfiguration().with(com.ferreusveritas.dynamictrees.systems.genfeature.FruitGenFeature.FRUIT, fruit("pear"));
             counter.run(config, new com.ferreusveritas.dynamictrees.systems.genfeature.context.PostGrowContext(level, root, tree, root.above(), 15, true));

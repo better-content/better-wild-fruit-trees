@@ -51,8 +51,9 @@ There is no giant-tree worldgen rewrite, forced backfill, or chunk-load growth s
 ### Bountiful fruit
 
 - Mature dynamic fruit yields **8 times its native product count**.
-- Natural fruit replenishment uses **at least 12 placement attempts**, rather than the
-  native default of four. Initial worldgen fruit placement is not increased.
+- Natural fruit replenishment keeps **at least 12 bounded placement attempts** for native
+  canopy geometry, but successful replacements now spend a per-root production allowance
+  described below. Attempts are not guaranteed fruit. Initial worldgen fruit placement is unchanged.
 - Fruit picking remains the normal native interaction. Immature fruit is not rewarded.
 - Durian falling harvests use the same amplified native loot path, exactly once.
 - Drop stacks are copied and split at the native stack limit.
@@ -117,9 +118,9 @@ Glow berries (cave vines), Twilight Forest torchberries (hanging plants), tree
 bayberry/hawberry, pineapple, melons and other non-bush crops are excluded.
 
 All fruit ages use mature physical outline geometry and full-grown foliage models.
-Age remains native fruit readiness: native picking, fruit reset, random ripening and
-bonemeal regrowth continue without shrinking the plant. Native per-plant yields are
-unchanged, not multiplied by eight. Abundance comes from **30–42 plants per field**, not
+Age remains native fruit readiness: picking, fruit reset and bonemeal regrowth continue
+without shrinking the plant. Natural random growth is deliberately slowed and normalized
+per species as described below. Native per-plant picking yields are unchanged, not multiplied by eight. Abundance comes from **30–42 plants per field**, not
 increased fruit per plant; actual harvest totals still vary by species and native yield.
 
 Configured-feature overrides replace only the four bush patch definitions. Existing biome
@@ -138,6 +139,35 @@ recipes remain intact; bush harvest food is not filtered from loot. Existing pla
 bushes become protected resources in place. Commands, structure cloning, world-edit code,
 and machines that directly write blocks without Forge placement events are outside this
 propagation guard; native destruction by machines/fire/explosions is intentionally preserved.
+
+## Renewable production cadence
+
+Size and productivity are separate. Large trees and 30–42-bush fields stay large; natural
+renewal is paced around a **50,000-game-tick reference day** (41 minutes 40 seconds at 20 TPS,
+matching the pack's extended daylight plus normal night). This standalone mod does not change
+the day-length mod, world clock or randomTickSpeed. Sleeping/skipping calendar time earns nothing.
+
+- **Fields:** a mean 36-plant field targets **20 berries per reference day** at randomTickSpeed 3,
+  sufficient light and prompt ripe harvesting. At 30–42 plants the expected range is about
+  **16.7–23.3**, not an exact daily quota. Sweet/sourceberry ripe picks average 2.5 items;
+  blueberry/cranberry picks average 1.5. Both need two native growth stages after ripe picking,
+  so their per-random-tick growth probabilities differ (about 1.21% and 2.02%, respectively).
+  Existing Forge growth vetoes and explicit ALLOW boosts remain authoritative; ordinary crops
+  and non-target plants are unaffected. Bonemeal is not throttled by this natural-growth policy.
+- **Trees:** protected fruit roots earn one replacement fruit block per **5,000 game ticks**,
+  corresponding to **80 fruit per reference day** at eight items per ripe block. Only a successful
+  native placement spends credit: blocked/occupied/non-exposed foliage does not count as capacity.
+  The native geometry, fruiting-size checks, seasonal eligibility and ripening remain in charge;
+  unproductive trees may fall below this target. The allowance is independent of leaf count.
+- Native species-root block entity data persists fractional credit. It starts empty and banks at
+  most **two replacements (16 eventual items)**, not whole days of unattended output. Data/level
+  reattachment resets the accrual timestamp, so unload/restart time does not mint catch-up credit.
+  Naturally infrequent updates and a full bank can lose potential production; this is a target
+  rate for a productive tree, not guaranteed harvest or unlimited compensation for missed ticks.
+- Existing ripe fruit, initial worldgen stock and native per-pick yield are unchanged. A first
+  discovery/full harvest can exceed these renewable daily targets. Season, loading, harvest
+  frequency and explicit growth boosts affect actual output; source fixtures are not full-pack
+  seasonal or gameplay-performance acceptance.
 
 ## Explicitly unchanged
 
@@ -177,6 +207,11 @@ under `run-gametest/retained-worlds/` before each fresh native invocation.
 Local Gradle invocations must hold the workspace POSIX `fcntl` Forge cache lock for
 the complete child-process lifetime (canonical `test-control.main.kts run source --repo`
 is preferred); BSD `flock` is not interoperable with the canonical Java lock.
+The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
+real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
+eighty-item replacement accounting, all protected species' persistent root ownership and native
+save/load/level reattachment without offline catch-up. Controlled elapsed-time fixtures establish
+accounting, not observed full-pack fruit per calendar day.
 Development tests do not constitute full-modpack,
 client-rendering, landscape-size, or gameplay-performance acceptance.
 

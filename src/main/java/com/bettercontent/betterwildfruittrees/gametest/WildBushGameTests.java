@@ -56,7 +56,7 @@ public final class WildBushGameTests {
             h.assertTrue(picked.is(block) && picked.getValue(age) < mature.getValue(age), "Native picking/reset failed " + id);
             int yield = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box).stream().mapToInt(e -> e.getItem().getCount()).sum();
             h.assertTrue(yield >= 1 && yield <= 3, "Native aggregate balancing changed per-bush yield " + id + " count=" + yield);
-            for (int i = 0; i < 300 && level.getBlockState(pos).getValue(age) < mature.getValue(age); i++)
+            for (int i = 0; i < 5000 && level.getBlockState(pos).getValue(age) < mature.getValue(age); i++)
                 block.randomTick(level.getBlockState(pos), level, pos, net.minecraft.util.RandomSource.create(i));
             h.assertTrue(level.getBlockState(pos).equals(mature), "Native random fruit ripening failed " + id);
             level.setBlock(pos, picked, 2);

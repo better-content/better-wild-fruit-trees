@@ -124,8 +124,8 @@ def classify_log(text):
 def check_log(text):
     findings = [item['record'] for item in classify_log(text) if item['blocking']]
     counts = re.findall(r"All (\d+) required tests passed", text)
-    if not counts or int(counts[-1]) != 15:
-        findings.append("Missing complete native GameTest success (exactly fifteen required tests)")
+    if not counts or int(counts[-1]) != 17:
+        findings.append("Missing complete native GameTest success (exactly seventeen required tests)")
     return findings
 
 

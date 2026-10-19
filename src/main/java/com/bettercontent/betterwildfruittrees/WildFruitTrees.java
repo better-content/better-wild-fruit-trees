@@ -64,10 +64,18 @@ public final class WildFruitTrees {
         event.setResult(grow ? Event.Result.ALLOW : Event.Result.DENY);
     }
     @SubscribeEvent
+    public void onTreeGenerated(com.ferreusveritas.dynamictrees.event.SpeciesPostGenerationEvent event) {
+        if (WildFruitPolicy.protectsSpecies(event.getSpecies().getRegistryName().toString()))
+            TreeMaturation.finishGeneration(event.getLevel(), event.getRootPos());
+    }
+    @SubscribeEvent
     public void onChunkLoad(net.minecraftforge.event.level.ChunkEvent.Load event) {
         // Also cover reattaching an existing chunk instance without deserializing its roots again.
         if (!event.getLevel().isClientSide() && event.getChunk() instanceof net.minecraft.world.level.chunk.LevelChunk chunk)
-            chunk.getBlockEntities().values().forEach(TreeFruitBudget::resume);
+            chunk.getBlockEntities().values().forEach(entity -> {
+                TreeFruitBudget.resume(entity);
+                TreeMaturation.resume(entity);
+            });
     }
     @SubscribeEvent
     public void onTrade(PlayerInteractEvent.EntityInteract event) {

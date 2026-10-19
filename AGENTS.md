@@ -17,6 +17,15 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
   preserve native biome preferences and unhandled ordinary-tree fallback. Do not cull existing resources.
   Tree production credit belongs to native species-root data, spends only on successful placements,
   banks at most two replacements and must not accrue unloaded/restart time.
+- New protected roots keep native worldgen geometry. Their additional growth-signal energy and
+  growth-only tapering ramp from native to enlarged settings over 30 extended days (1,500,000
+  active/forced chunk ticks), using native inhabited time and persistent root age. No calendar,
+  bonemeal or offline catch-up; keep legacy untracked roots mature, ordinary trees unchanged,
+  and JoCode/InflatorNode getters native. New tracked worldgen roots left exhausted receive 15
+  fertility once after generation; preserve nonzero authored values and never refuel legacy/ordinary
+  roots or repeat on reload. Explicitly serialize only owned maturation/fruit-credit records because
+  the pinned native species entity skips Forge's superclass save/load. Verify fresh entities and
+  protochunk serialization, not same-instance reload alone. This schedule is potential, not guaranteed geometry.
 - Native API/mixin targets are pinned to DT 1.4.10, DT Fruits Delight 1.0.0 and Fruits Delight 1.1.3.
   Optional TConstruct public APIs are pinned to 3.11.2.166 / Mantle 1.11.104.
   Changing a pin requires native tests; do not relax required injections to accommodate drift.

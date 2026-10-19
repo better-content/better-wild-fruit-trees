@@ -141,7 +141,11 @@ public final class ProductionGameTests {
         data.putLong("credit", 2000);
         data.putLong("lastTick", level.getGameTime() - 50_000_000);
         var encoded = entity.saveWithFullMetadata();
-        entity.load(encoded.copy());
+        h.assertTrue(encoded.contains(TreeFruitBudget.KEY), "Native root serialization omitted fruit credit");
+        var decoded = net.minecraft.world.level.block.entity.BlockEntity.loadStatic(root, level.getBlockState(root), encoded.copy());
+        h.assertTrue(decoded != null && decoded != entity, "Credit reload must reconstruct a fresh native entity");
+        level.setBlockEntity(decoded);
+        entity = decoded;
         entity.setLevel(level);
         var restored = entity.getPersistentData().getCompound(TreeFruitBudget.KEY);
         h.assertTrue(!restored.contains("lastTick"), "Data/level reattachment retained an offline timestamp");

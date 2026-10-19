@@ -28,7 +28,7 @@ Bumblezone, or other Better Content mod is required. Java 17 is required.
 
 ### Larger growth potential
 
-| Fruit tree | Growth-signal energy |
+| Fruit tree | Mature growth-signal energy |
 | --- | ---: |
 | Mangosteen, hawberry | 20 |
 | Apple, orange, pear, lychee | 25 |
@@ -48,6 +48,42 @@ Existing JoCodes and global worldgen density are not replaced. Protected fruit-s
 selection is deliberately made very rare, with ordinary-tree fallback as described below.
 Trees retain their authored generation layouts and can grow toward the increased potential afterward.
 There is no giant-tree worldgen rewrite, forced backfill, or chunk-load growth scan.
+
+### Thirty-day additional growth
+
+New protected trees **keep their current native JoCode/worldgen size**. Their additional
+post-generation growth potential matures over **30 extended Minecraft days**: **1,500,000
+active chunk ticks**, or about **20 hours 50 minutes at 20 TPS**. This is not a seedling-worldgen
+rewrite, an instant day-thirty resize, or a guaranteed height.
+
+- Growth signals start at the species' original native energy, then linearly reach the mature
+  energy table above at day thirty. Growth-only branch tapering likewise moves from native
+  tapering to native/2.5. At day fifteen, half the **additional potential** is available—not
+  necessarily half a finished tree's physical dimensions. The native getter used by JoCode's
+  InflatorNode is never age-scaled.
+- Successful native protected-root placement creates root-owned maturation data. The first
+  native growth update anchors a vanilla chunk **inhabited-time** clock; active/forced ticking
+  accrues age, while merely loaded but inactive chunks, unloaded terrain and server downtime do
+  not. Clock reads are loaded-only; no global tree scan or per-branch persistence writes occur.
+- Sleeping/calendar skips and repeated bonemeal/artificial growth pulses cannot award age.
+  Native boosts still run growth attempts within the current ceiling. Soil fertility, seasons,
+  obstacles and native growth opportunities can delay actual shape development beyond the
+  schedule; full enlarged potential becomes available at day thirty, not guaranteed geometry.
+- Native JoCodes normally leave generated roots at zero fertility. After generation and initial
+  fruit placement finish, a new tracked protected root receives **15 fertility once** if still
+  exhausted; existing nonzero authored fertility is preserved. The persisted one-time marker
+  prevents repeated notifications/reloads from refueling it. Ordinary and legacy roots are not
+  refueled. Subsequent native fertility consumption and replenishment still apply.
+- Native root saves preserve earned age. The pinned species entity skips Forge's superclass
+  save/load methods, so narrow native-root hooks explicitly serialize only this mod's maturation
+  and fruit-credit records. Unrelated Forge data/capabilities and native species are not rewritten.
+  Data/level/chunk reattachment rebases the clock on the
+  first subsequent growth update, without offline catch-up. Duplicate root initialization does
+  not reset progress. **Legacy roots without maturation data retain their full existing growth
+  potential**; no existing tree is shrunk, scanned, reset or forcibly resized.
+- Fruit ripening, the 160-fruit renewable target, field regrowth and the very-rare discovery
+  gates remain independent. A generated tree can already bear fruit before additional growth
+  maturation finishes. Ordinary species receive no maturation ledger or growth restriction.
 
 ### Bountiful fruit
 
@@ -242,6 +278,13 @@ Rarity fixtures enumerate every field gate outcome and all 256 tree gate outcome
 every protected species' actual pinned upstream weighted rule, proving native ordinary fallback,
 unchanged density/chance selectors and ordinary-species RNG behavior. They do not establish
 representative-seed landscape density or exploration time.
+Maturation fixtures exercise actual native growth-signal emission and real branch tapering
+for all thirteen species at birth, halfway, just before day thirty and maturity. They cover
+chunk-clock accounting, native bonemeal pulses, calendar skips, actual protochunk birth/NBT
+serialization and fresh-entity reconstruction, one-time generated-soil establishment, save/load
+and existing-chunk reattachment, fruit-credit independence, legacy roots, ordinary-tree controls and missing-chunk
+safety. Controlled elapsed-time fixtures do not establish twenty observed hours of full-pack
+physical tree growth.
 Development tests do not constitute full-modpack,
 client-rendering, landscape-size, or gameplay-performance acceptance.
 

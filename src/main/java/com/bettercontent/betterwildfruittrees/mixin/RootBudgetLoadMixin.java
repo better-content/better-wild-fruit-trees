@@ -12,6 +12,5 @@ public abstract class RootBudgetLoadMixin {
     @Inject(method = {"load", "setLevel"}, at = @At("RETURN"))
     private void wildFruit$resumeProduction(CallbackInfo ci) {
         TreeFruitBudget.resume((BlockEntity)(Object)this);
-        com.bettercontent.betterwildfruittrees.TreeMaturation.resume((BlockEntity)(Object)this);
     }
 }

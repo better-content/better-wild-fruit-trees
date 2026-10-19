@@ -17,15 +17,15 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
   preserve native biome preferences and unhandled ordinary-tree fallback. Do not cull existing resources.
   Tree production credit belongs to native species-root data, spends only on successful placements,
   banks at most two replacements and must not accrue unloaded/restart time.
-- New protected roots keep native worldgen geometry. Their additional growth-signal energy and
-  growth-only tapering ramp from native to enlarged settings over 30 extended days (1,500,000
-  active/forced chunk ticks), using native inhabited time and persistent root age. No calendar,
-  bonemeal or offline catch-up; keep legacy untracked roots mature, ordinary trees unchanged,
-  and JoCode/InflatorNode getters native. New tracked worldgen roots left exhausted receive 15
-  fertility once after generation; preserve nonzero authored values and never refuel legacy/ordinary
-  roots or repeat on reload. Explicitly serialize only owned maturation/fruit-credit records because
-  the pinned native species entity skips Forge's superclass save/load. Verify fresh entities and
-  protochunk serialization, not same-instance reload alone. This schedule is potential, not guaranteed geometry.
+- Protected wood growth uses constant per-species growth-rate multipliers calibrated to roughly
+  30 extended days (1,500,000 ticks) from fresh native geometry to native full trunk radius under
+  favorable conditions, at randomTickSpeed 3/global growthMultiplier 0.5. No age ledger, size ramp,
+  day-thirty event or automatic fertility supply. Keep full-size energy/taper from the first pulse,
+  JoCode/InflatorNode getters and generated size/soil native, ordinary rates untouched, and native
+  seasonal/explicit boosts proportional. Native canopy can continue filling after the adult-trunk
+  reference; no guaranteed physical maximum/deadline. Verify real native pulse frequency and seeded
+  fresh growth, not just rate arithmetic. Only fruit credit is persisted through explicit owned-key
+  hooks because the pinned species entity skips Forge's superclass serializer; test fresh entities.
 - Native API/mixin targets are pinned to DT 1.4.10, DT Fruits Delight 1.0.0 and Fruits Delight 1.1.3.
   Optional TConstruct public APIs are pinned to 3.11.2.166 / Mantle 1.11.104.
   Changing a pin requires native tests; do not relax required injections to accommodate drift.

@@ -1,7 +1,6 @@
 package com.bettercontent.betterwildfruittrees.mixin;
 
 import com.bettercontent.betterwildfruittrees.TreeFruitBudget;
-import com.bettercontent.betterwildfruittrees.TreeMaturation;
 import com.ferreusveritas.dynamictrees.block.entity.SpeciesBlockEntity;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -14,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** The pinned native species entity overrides save/load without calling Forge's super methods. */
 @Mixin(SpeciesBlockEntity.class)
 public abstract class RootPersistenceMixin {
-    @Unique private static final java.util.List<String> wildFruit$keys = java.util.List.of(TreeFruitBudget.KEY, TreeMaturation.KEY);
+    @Unique private static final java.util.List<String> wildFruit$keys = java.util.List.of(TreeFruitBudget.KEY);
 
     @Inject(method = "saveAdditional", at = @At("RETURN"))
     private void wildFruit$saveOwnedData(CompoundTag output, CallbackInfo ci) {
@@ -35,6 +34,5 @@ public abstract class RootPersistenceMixin {
                 persistent.put(key, input.getCompound("ForgeData").getCompound(key).copy());
         }
         TreeFruitBudget.resume(entity);
-        TreeMaturation.resume(entity);
     }
 }

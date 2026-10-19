@@ -3,3 +3,8 @@
 # This file is outside main resources and is never shipped in the mod JAR.
 [world]
 worldGen = false
+
+# Match the pack's real growth cadence; normalization tests inspect these live native values.
+[trees]
+growthMultiplier = 0.5
+growthFolding = 2

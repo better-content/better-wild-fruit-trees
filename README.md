@@ -60,9 +60,11 @@ remains blocked; the fresh-tree model is a calibration reference, not new portab
 - **No age ledger, maturity timer, changing energy/tapering, size unlock or day-thirty event.**
   Full-size energy and growth-only tapering apply from the first pulse. Native JoCode/InflatorNode
   tapering remains unchanged. Existing and fresh trees use the same rate; old age records are ignored.
-- `TreeGrowthRates` records eight seeded native fresh-growth samples per species. The reference
-  is the first attainment of the species' native **maximum trunk radius**, not guaranteed final
-  canopy volume/height. Branches can continue filling out naturally afterward. These controlled
+- `TreeGrowthRates` records eight seeded native fresh-growth samples per species. The GameTest
+  world seed is pinned to `8675309`; pulse counts remain a sampled calibration, not a deterministic
+  per-tree guarantee. The reference is the first attainment of the species' native **maximum trunk
+  radius**, not guaranteed final canopy volume/height. Branches can continue filling out naturally
+  afterward. These controlled
   favorable-condition samples do not establish a universal physical maximum or full-pack growth time.
 - For measured mean pulse count `P`, the baseline growth rate is
   `P × 4096 / (1,500,000 × 3 × 0.5)`. Vanilla selects 3 of 4096 section positions per tick;

@@ -106,8 +106,20 @@ val resetGameTestWorld by tasks.registering {
         }
     }
 }
+val configureGameTestWorldSeed by tasks.registering {
+    dependsOn(prepareGameTestFiles)
+    doLast {
+        val properties = file("run-gametest/server.properties")
+        val seedLine = "level-seed=8675309"
+        val lines = if (properties.isFile) properties.readLines() else emptyList()
+        val updated = lines.map { if (it.startsWith("level-seed=")) seedLine else it }.toMutableList()
+        if (lines.none { it.startsWith("level-seed=") }) updated += seedLine
+        properties.parentFile.mkdirs()
+        properties.writeText(updated.joinToString("\n", postfix = "\n"))
+    }
+}
 tasks.matching { it.name.startsWith("prepareRunGameTestServer") }.configureEach {
-    dependsOn(syncGameTestStructures, prepareGameTestFiles, resetGameTestWorld)
+    dependsOn(syncGameTestStructures, prepareGameTestFiles, resetGameTestWorld, configureGameTestWorldSeed)
 }
 val verifyScripts by tasks.registering(Exec::class) {
     commandLine("python3", "-B", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py")

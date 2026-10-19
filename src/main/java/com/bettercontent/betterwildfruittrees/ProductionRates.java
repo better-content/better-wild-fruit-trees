@@ -4,8 +4,8 @@ package com.bettercontent.betterwildfruittrees;
 public final class ProductionRates {
     public static final long DAY_TICKS = 50_000;
     public static final int FIELD_PLANTS = 36;
-    public static final int FIELD_ITEMS = 20;
-    public static final int TREE_ITEMS = 80;
+    public static final int FIELD_ITEMS = 40;
+    public static final int TREE_ITEMS = 160;
     public static final long FRUIT_INTERVAL = DAY_TICKS * 8 / TREE_ITEMS;
     public static final long MAX_CREDIT = FRUIT_INTERVAL * 2;
     private ProductionRates() {}

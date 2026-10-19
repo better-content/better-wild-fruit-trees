@@ -169,11 +169,18 @@ public final class WildBushGameTests {
             h.assertTrue(feature.feature() instanceof WildBushField, "Configured feature not overridden " + id);
             boolean present = !id.startsWith("ars_nouveau:") || net.minecraftforge.fml.ModList.get().isLoaded("ars_nouveau");
             boolean widened = false;
+            for (int x=-24;x<=24;x++) for(int z=-24;z<=24;z++) level.setBlock(origin.offset(x,0,z), Blocks.AIR.defaultBlockState(), 2);
+            for (int roll=1;roll<128;roll++) {
+                var rejected = new RarityGameTests.Rolls(1, true, 128, roll);
+                h.assertTrue(!feature.place(region, level.getChunkSource().getGenerator(), rejected, origin), "Rare field accepted rejected roll " + id + " " + roll);
+                h.assertTrue(rejected.consumed() == present, "Wrong field rarity draw/absent-mod behavior " + id);
+            }
             for (int[] corner : new int[][]{{0, 0}, {15, 0}, {0, 15}, {15, 15}}) {
                 for (int x=-24;x<=24;x++) for(int z=-24;z<=24;z++) level.setBlock(origin.offset(x,0,z), Blocks.AIR.defaultBlockState(), 2);
                 var edgeOrigin = new BlockPos(chunk.getMinBlockX() + corner[0], origin.getY(), chunk.getMinBlockZ() + corner[1]);
-                var random = net.minecraft.util.RandomSource.create(112 + corner[0] + 16 * corner[1]);
+                var random = new RarityGameTests.Rolls(112 + corner[0] + 16 * corner[1], false, 128, 0);
                 h.assertTrue(feature.place(region, level.getChunkSource().getGenerator(), random, edgeOrigin) == present, "Native/optional feature placement " + id);
+                h.assertTrue(random.consumed() == present, "Accepted field did not use its rarity gate " + id);
                 int count = 0, minX = 99, maxX = -99, minZ = 99, maxZ = -99;
                 for (int x=-24;x<=24;x++) for(int z=-24;z<=24;z++) if (WildBushes.isBush(level.getBlockState(origin.offset(x,0,z)))) {
                     count++; minX=Math.min(minX,x); maxX=Math.max(maxX,x); minZ=Math.min(minZ,z); maxZ=Math.max(maxZ,z);

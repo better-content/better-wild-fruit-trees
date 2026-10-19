@@ -6,13 +6,15 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
 - Fast gate: `./gradlew --no-daemon verifyFast` (not native acceptance).
 - Runtime artifact: `build/libs/better-wild-fruit-trees-<version>.jar`.
 - GameTest classes and templates must not ship in the runtime JAR.
-- Keep JoCodes, tree worldgen selection/density, global DT growth settings, ordinary trees,
+- Keep JoCodes, global tree worldgen density, global DT growth settings, ordinary trees,
   non-bush fruit plants and Bumblezone cultivars unchanged. Explicit bush scope: vanilla sweet
   berry, Fruits Delight blueberry/cranberry, and optional Ars Nouveau sourceberry. Their native
   per-pick yields, reset ages and bonemeal remain native. Keep broad 30–42-plant fields over
   a 47×47 footprint, centered on the decoration chunk to keep generation writes local. Natural
-  renewal targets 20 berries per mean field and 80 fruit per productive protected tree per
+  renewal targets 40 berries per mean field and 160 fruit per productive protected tree per
   50,000 active game ticks; preserve Forge growth vetoes/boosts and native geometry/season checks.
+  New fields pass an additional 1-in-128 gate and protected weighted tree choices a 1-in-256 gate;
+  preserve native biome preferences and unhandled ordinary-tree fallback. Do not cull existing resources.
   Tree production credit belongs to native species-root data, spends only on successful placements,
   banks at most two replacements and must not accrue unloaded/restart time.
 - Native API/mixin targets are pinned to DT 1.4.10, DT Fruits Delight 1.0.0 and Fruits Delight 1.1.3.

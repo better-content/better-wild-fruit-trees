@@ -11,6 +11,8 @@ public final class WildFruitPolicy {
         Map.entry("persimmon", 30F), Map.entry("peach", 30F), Map.entry("bayberry", 35F), Map.entry("fig", 35F),
         Map.entry("kiwi", 37.5F), Map.entry("durian", 40F), Map.entry("mango", 40F));
     public static final int HARVEST_MULTIPLIER = 8;
+    public static final int FIELD_RARITY = 128;
+    public static final int TREE_RARITY = 256;
     public static final int SOIL_LONGEVITY_MULTIPLIER = 3;
     public static final int FRUIT_PLACEMENT_ATTEMPTS = 12;
     public static final float MIN_BRANCH_HARDNESS = 80F;

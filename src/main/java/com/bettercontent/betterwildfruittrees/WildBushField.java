@@ -26,6 +26,8 @@ public final class WildBushField extends Feature<WildBushField.Config> {
         if (block == null || block == Blocks.AIR || !WildBushes.isBush(block.defaultBlockState())) return false;
         var level = context.level();
         var random = context.random();
+        // Additional rarity after the native placed-feature/biome filters; never shrink a field.
+        if (random.nextInt(WildFruitPolicy.FIELD_RARITY) != 0) return false;
         int target = 30 + random.nextInt(13), placed = 0;
         // Centre the larger field on its decoration chunk so writes stay in its 3x3 chunk neighbourhood.
         var chunk = level instanceof WorldGenRegion region ? region.getCenter() : new ChunkPos(context.origin());

@@ -44,8 +44,9 @@ species use three times their native biome-adjusted soil longevity to support th
 thickness caps, space, light, soil fertility, seasonal behavior, and growth logic still
 apply. The mod does not make trees grow indefinitely or change their growth-rate setting.
 
-Existing JoCodes and worldgen species selection/density are not replaced. Trees retain
-their authored generation layouts and can grow toward the increased potential afterward.
+Existing JoCodes and global worldgen density are not replaced. Protected fruit-species
+selection is deliberately made very rare, with ordinary-tree fallback as described below.
+Trees retain their authored generation layouts and can grow toward the increased potential afterward.
 There is no giant-tree worldgen rewrite, forced backfill, or chunk-load growth scan.
 
 ### Bountiful fruit
@@ -53,7 +54,7 @@ There is no giant-tree worldgen rewrite, forced backfill, or chunk-load growth s
 - Mature dynamic fruit yields **8 times its native product count**.
 - Natural fruit replenishment keeps **at least 12 bounded placement attempts** for native
   canopy geometry, but successful replacements now spend a per-root production allowance
-  described below. Attempts are not guaranteed fruit. Initial worldgen fruit placement is unchanged.
+  described below. Attempts are not guaranteed fruit. Initial fruit placement per accepted worldgen tree is unchanged.
 - Fruit picking remains the normal native interaction. Immature fruit is not rewarded.
 - Durian falling harvests use the same amplified native loot path, exactly once.
 - Drop stacks are copied and split at the native stack limit.
@@ -124,7 +125,8 @@ per species as described below. Native per-plant picking yields are unchanged, n
 increased fruit per plant; actual harvest totals still vary by species and native yield.
 
 Configured-feature overrides replace only the four bush patch definitions. Existing biome
-selection and patch frequency remain native. Each field targets 30–42 successful plants
+selection and outer patch frequency remain native, followed by an additional 1-in-128 field
+gate. Each accepted field targets 30–42 successful plants
 with irregular triangular offsets over a **47×47-block footprint** and sparse spacing; poor
 terrain can yield fewer. The target count is tripled from 10–14 and the footprint area is
 about 2.6 times the former 29×29 area. Placement gets 288 bounded attempts. Fields are centered
@@ -140,6 +142,30 @@ bushes become protected resources in place. Commands, structure cloning, world-e
 and machines that directly write blocks without Forge placement events are outside this
 propagation guard; native destruction by machines/fire/explosions is intentionally preserved.
 
+## Very rare new-world resources
+
+The landmarks are large and productive, but new discoveries are deliberately scarce:
+
+- **Fields:** each otherwise eligible native bush-feature attempt passes an additional
+  **1-in-128** roll. A native 1-in-32 placed feature becomes **1 attempt per 4,096 eligible
+  chunks per berry type** (about one per 1.05 square kilometres of fully eligible terrain).
+  Snowy-taiga sweet berries go from 1-in-384 to **1-in-49,152**. Biome preferences stay native;
+  overlapping types still add opportunities. Ordinary taiga's sweet/blue/sourceberry rules
+  total roughly **2.9 attempts per square kilometre**, before terrain and placement failures.
+- **Trees:** a protected species selected by the native weighted selector passes an additional
+  **1-in-256** roll. Failure returns native **unhandled**, so the addon's `SPLICE_BEFORE` chain
+  continues into its ordinary biome selector instead of requesting a handled null tree.
+  All thirteen protected species' pinned upstream rules are covered by the native fixture.
+  A native 1-in-41 species rule becomes **1-in-10,496**; the base temperate forest's four
+  overlapping fruit rules total approximately **0.026%**, or one in roughly **3,900 tree
+  selections**. This is not an observed successful-tree density per square kilometre.
+- Native biome eligibility, ordinary species selection, tree density/chance settings and JoCodes
+  remain in charge. No fruit species is introduced to a new biome. The rolls do not enforce a
+  minimum distance: rare nearby clusters remain possible, and unsuccessful terrain lowers output.
+- Rarity applies to **new generation only**. Existing trees/fields are retained, not culled or
+  relocated. There is no existing-world scan/backfill. Commands, structure cloning, direct block
+  writes and third-party generators bypassing these native feature/selector paths are not covered.
+
 ## Renewable production cadence
 
 Size and productivity are separate. Large trees and 30–42-bush fields stay large; natural
@@ -147,15 +173,15 @@ renewal is paced around a **50,000-game-tick reference day** (41 minutes 40 seco
 matching the pack's extended daylight plus normal night). This standalone mod does not change
 the day-length mod, world clock or randomTickSpeed. Sleeping/skipping calendar time earns nothing.
 
-- **Fields:** a mean 36-plant field targets **20 berries per reference day** at randomTickSpeed 3,
+- **Fields:** a mean 36-plant field targets **40 berries per reference day** at randomTickSpeed 3,
   sufficient light and prompt ripe harvesting. At 30–42 plants the expected range is about
-  **16.7–23.3**, not an exact daily quota. Sweet/sourceberry ripe picks average 2.5 items;
+  **33.3–46.7**, not an exact daily quota. Sweet/sourceberry ripe picks average 2.5 items;
   blueberry/cranberry picks average 1.5. Both need two native growth stages after ripe picking,
-  so their per-random-tick growth probabilities differ (about 1.21% and 2.02%, respectively).
+  so their per-random-tick growth probabilities differ (about 2.43% and 4.05%, respectively).
   Existing Forge growth vetoes and explicit ALLOW boosts remain authoritative; ordinary crops
   and non-target plants are unaffected. Bonemeal is not throttled by this natural-growth policy.
-- **Trees:** protected fruit roots earn one replacement fruit block per **5,000 game ticks**,
-  corresponding to **80 fruit per reference day** at eight items per ripe block. Only a successful
+- **Trees:** protected fruit roots earn one replacement fruit block per **2,500 game ticks**,
+  corresponding to **160 fruit per reference day** at eight items per ripe block. Only a successful
   native placement spends credit: blocked/occupied/non-exposed foliage does not count as capacity.
   The native geometry, fruiting-size checks, seasonal eligibility and ripening remain in charge;
   unproductive trees may fall below this target. The allowance is independent of leaf count.
@@ -164,14 +190,14 @@ the day-length mod, world clock or randomTickSpeed. Sleeping/skipping calendar t
   reattachment resets the accrual timestamp, so unload/restart time does not mint catch-up credit.
   Naturally infrequent updates and a full bank can lose potential production; this is a target
   rate for a productive tree, not guaranteed harvest or unlimited compensation for missed ticks.
-- Existing ripe fruit, initial worldgen stock and native per-pick yield are unchanged. A first
+- Existing ripe fruit, initial stock per accepted worldgen resource and native per-pick yield are unchanged. A first
   discovery/full harvest can exceed these renewable daily targets. Season, loading, harvest
   frequency and explicit growth boosts affect actual output; source fixtures are not full-pack
   seasonal or gameplay-performance acceptance.
 
 ## Explicitly unchanged
 
-- Ordinary oak, birch, spruce, jungle, and other non-target species.
+- Ordinary oak, birch, spruce, jungle, and other non-target species' growth, harvest and protection behavior.
 - Pineapple, melons, non-bush vines/crops and other non-target plants.
 - Global Dynamic Trees growth, worldgen density, and authored JoCodes.
 - Ordinary oak planting stock and the independent Bumblezone cultivar system.
@@ -209,9 +235,13 @@ the complete child-process lifetime (canonical `test-control.main.kts run source
 is preferred); BSD `flock` is not interoperable with the canonical Java lock.
 The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
 real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
-eighty-item replacement accounting, all protected species' persistent root ownership and native
+160-item replacement accounting, all protected species' persistent root ownership and native
 save/load/level reattachment without offline catch-up. Controlled elapsed-time fixtures establish
 accounting, not observed full-pack fruit per calendar day.
+Rarity fixtures enumerate every field gate outcome and all 256 tree gate outcomes against
+every protected species' actual pinned upstream weighted rule, proving native ordinary fallback,
+unchanged density/chance selectors and ordinary-species RNG behavior. They do not establish
+representative-seed landscape density or exploration time.
 Development tests do not constitute full-modpack,
 client-rendering, landscape-size, or gameplay-performance acceptance.
 

@@ -108,7 +108,7 @@ public final class ProductionGameTests {
         var data = entity.getPersistentData().getCompound(TreeFruitBudget.KEY);
         h.assertTrue(data.contains("lastTick") && data.getLong("credit") == 0, "No unpaid initial replacement");
         int output = 0;
-        for (int pulse = 0; pulse < 10; pulse++) {
+        for (int pulse = 0; pulse < 20; pulse++) {
             // Controlled elapsed active time, without changing this shared GameTest world's clock.
             data.putLong("lastTick", level.getGameTime() - ProductionRates.FRUIT_INTERVAL);
             boolean[] funded = {false};
@@ -130,7 +130,7 @@ public final class ProductionGameTests {
                 }
             }
         }
-        h.assertTrue(output == 80, "Ten actual native replacements must fund exactly eighty items, got " + output);
+        h.assertTrue(output == 160, "Twenty actual native replacements must fund exactly 160 items, got " + output);
         // Occluded leaf undersides are not fruit sites and must not consume production allowance.
         for (int x=-8;x<=8;x++) for(int z=-8;z<=8;z++) if(x!=0 || z!=0)
             level.setBlock(root.offset(x,3,z), Blocks.STONE.defaultBlockState(), 2);

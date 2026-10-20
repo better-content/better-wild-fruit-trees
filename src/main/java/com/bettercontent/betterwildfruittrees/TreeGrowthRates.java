@@ -8,6 +8,14 @@ public final class TreeGrowthRates {
     public static final int RANDOM_TICK_SPEED = 3;
     public static final double PACK_GROWTH_MULTIPLIER = 0.5;
     public record Reference(float nativeRate, double pulses) {}
+    /** Native rates are source facts; pulse references must be measured, not borrowed from other species. */
+    public static final Map<String, Float> REQUIRED_OPTIONAL_REFERENCES = Map.of(
+        "saguaro", 1F, "coconut", .8F, "ancient", .5F, "saguaro_mega", .6F);
+    public static java.util.Set<String> missingOptionalReferences() {
+        var missing = new java.util.TreeSet<>(REQUIRED_OPTIONAL_REFERENCES.keySet());
+        missing.removeAll(REFERENCES.keySet());
+        return java.util.Set.copyOf(missing);
+    }
     // Eight seeded, sunlit fresh native trees per species, using their native maximum trunk radius
     // as the adult-size reference. Canopy filling may continue; no runtime maturity test exists.
     public static final Map<String, Reference> REFERENCES = Map.ofEntries(
@@ -28,10 +36,23 @@ public final class TreeGrowthRates {
 
     public static Reference reference(String species) {
         String fruit = WildFruitPolicy.speciesFruit(species);
-        return fruit == null ? null : REFERENCES.get(fruit);
+        if (fruit == null) return null;
+        return requiredReference(fruit);
     }
     public static float rate(String species, float nativeRate) {
-        var ref = reference(species);
+        return apply(reference(species), nativeRate);
+    }
+    /** Called only for a root with persisted saguaro provenance, never ordinary mega cacti. */
+    public static float megaRate(float nativeRate) {
+        return apply(requiredReference("saguaro_mega"), nativeRate);
+    }
+    private static Reference requiredReference(String key) {
+        var reference = REFERENCES.get(key);
+        if (reference == null && REQUIRED_OPTIONAL_REFERENCES.containsKey(key))
+            throw new IllegalStateException("Unmeasured wild fruit growth reference: " + key + "; source work is not ready for activation");
+        return reference;
+    }
+    private static float apply(Reference ref, float nativeRate) {
         if (ref == null) return nativeRate;
         // Root random ticks select one of 4096 cells, 3 times/tick. DT divides root updates by
         // growthFolding and multiplies pulses/update by it: those factors cancel in expectation.

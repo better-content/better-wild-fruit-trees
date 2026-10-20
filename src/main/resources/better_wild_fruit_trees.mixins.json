@@ -3,7 +3,8 @@
   "minVersion": "0.8",
   "package": "com.bettercontent.betterwildfruittrees.mixin",
   "compatibilityLevel": "JAVA_17",
+  "plugin": "com.bettercontent.betterwildfruittrees.compat.AddonMixins",
   "refmap": "better_wild_fruit_trees.refmap.json",
-  "mixins": ["SpeciesMixin", "GrowSignalMixin", "FruitBlockMixin", "FruitGenFeatureMixin", "FruitSpeciesSelectorMixin", "RootBudgetLoadMixin", "RootPersistenceMixin", "SeedMixin", "TransformMixin", "StaffMixin", "BranchHardnessMixin", "RecipeManagerMixin", "BushStateMixin", "BushPlantingMixin"],
+  "mixins": ["SpeciesMixin", "MegaSubstanceMixin", "RootRemovalMixin", "StaticSpeciesSelectorMixin", "CactusFruitGenFeatureMixin", "CactusHardnessMixin", "PalmFruitGenFeatureMixin", "CoconutFoodBlockMixin", "CoconutReplacementMixin", "PodBlockMixin", "GrowSignalMixin", "FruitBlockMixin", "FruitGenFeatureMixin", "FruitSpeciesSelectorMixin", "RootBudgetLoadMixin", "RootPersistenceMixin", "SeedMixin", "TransformMixin", "StaffMixin", "BranchHardnessMixin", "RecipeManagerMixin", "BushStateMixin", "BushPlantingMixin"],
   "injectors": {"defaultRequire": 1}
 }

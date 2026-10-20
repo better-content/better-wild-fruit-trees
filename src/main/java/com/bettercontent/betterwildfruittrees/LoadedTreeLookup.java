@@ -47,7 +47,7 @@ public final class LoadedTreeLookup {
                 if (rootState.getBlock() instanceof RootyBlock rooty) {
                     Species species = rooty.getSpecies(rootState, level, cached.root);
                     if (species.getFamily() == family)
-                        return WildFruitPolicy.protectsSpecies(species.getRegistryName().toString());
+                        return protectedIdentity(level, cached.root, species);
                 }
             }
             ArrayDeque<BlockPos> pending = new ArrayDeque<>();
@@ -68,7 +68,7 @@ public final class LoadedTreeLookup {
                         if (species.getFamily() != family) continue;
                         if (cache.size() >= 256) cache.clear();
                         cache.put(start.immutable(), new CachedRoot(next.immutable(), level.getGameTime() + 5));
-                        return WildFruitPolicy.protectsSpecies(species.getRegistryName().toString());
+                        return protectedIdentity(level, next, species);
                     }
                     if (!seen.contains(next) && neighbor.getBlock() instanceof BranchBlock adjacent && adjacent.getFamily() == family)
                         pending.addLast(next);
@@ -78,6 +78,11 @@ public final class LoadedTreeLookup {
         return false;
     }
     private static boolean protectedRoot(Level level, BlockPos pos, RootyBlock rooty, BlockState state) {
-        return WildFruitPolicy.protectsSpecies(rooty.getSpecies(state, level, pos).getRegistryName().toString());
+        return protectedIdentity(level, pos, rooty.getSpecies(state, level, pos));
+    }
+    private static boolean protectedIdentity(Level level, BlockPos root, Species species) {
+        String id = species.getRegistryName().toString();
+        return WildFruitPolicy.protectsSpecies(id)
+            || com.bettercontent.betterwildfruittrees.compat.RootLedger.inherited(level, root, id);
     }
 }

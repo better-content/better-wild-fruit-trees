@@ -9,9 +9,11 @@ public final class Harvests {
     private Harvests() {}
     /** Copy and split; do not mutate upstream stacks or create oversized item entities. */
     public static List<ItemStack> amplify(Fruit fruit, List<ItemStack> original) {
-        if (!WildFruitPolicy.protectsFruit(fruit.getRegistryName().toString())) return original;
+        return amplify(fruit.getRegistryName().toString(), fruit.getItemStack(), original);
+    }
+    public static List<ItemStack> amplify(String harvestId, ItemStack product, List<ItemStack> original) {
+        if (!WildFruitPolicy.protectsFruit(harvestId)) return original;
         List<ItemStack> result = new ArrayList<>();
-        ItemStack product = fruit.getItemStack();
         for (ItemStack stack : original) {
             int remaining = stack.getCount() * (ItemStack.isSameItemSameTags(stack, product) ? WildFruitPolicy.HARVEST_MULTIPLIER : 1);
             while (remaining > 0) {

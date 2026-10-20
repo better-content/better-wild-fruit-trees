@@ -23,6 +23,7 @@ public final class WildFruitTrees {
         DeferredRegister.create(ForgeRegistries.Keys.GLOBAL_LOOT_MODIFIER_SERIALIZERS, MOD_ID);
     static { MODIFIERS.register("no_propagules", () -> PropagationLootModifier.CODEC); }
     public WildFruitTrees() {
+        com.bettercontent.betterwildfruittrees.compat.LedgerNetwork.initialize();
         MODIFIERS.register(FMLJavaModLoadingContext.get().getModEventBus());
         WildBushField.FEATURES.register(FMLJavaModLoadingContext.get().getModEventBus());
         MinecraftForge.EVENT_BUS.register(this);
@@ -36,7 +37,10 @@ public final class WildFruitTrees {
             event.setCanceled(true);
             return;
         }
-        if (WildFruitPolicy.blockedPlantItem(ForgeRegistries.ITEMS.getKey(event.getItemStack().getItem()).toString())) {
+        // Dual-purpose foods remain edible/usable in cooking. Only their pot interaction is rejected here;
+        // native seed/species and block-placement hooks reject their actual planting routes.
+        if (WildFruitPolicy.blockedPlantItem(held) || WildFruitPolicy.ediblePropagule(held)
+                && event.getLevel().getBlockState(event.getPos()).getBlock() instanceof net.minecraft.world.level.block.FlowerPotBlock) {
             event.setCancellationResult(InteractionResult.FAIL);
             event.setCanceled(true);
         }

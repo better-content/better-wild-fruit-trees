@@ -22,9 +22,11 @@ minecraft {
         create("server") { arg("--nogui") }
         create("gameTestServer") {
             workingDirectory(project.file("run-gametest"))
-            property("forge.enabledGameTestNamespaces", "better_wild_fruit_trees")
+            property("forge.enabledGameTestNamespaces", if (project.hasProperty("optionalGrowthCalibration"))
+                "better_wild_fruit_calibration" else "better_wild_fruit_trees")
             property("better_wild_fruit_trees.fixture.tconstruct", (!project.hasProperty("withoutTConFixture")).toString())
             property("better_wild_fruit_trees.fixture.ars_nouveau", (!project.hasProperty("withoutArsFixture")).toString())
+            property("better_wild_fruit_trees.fixture.wild_addons", (!project.hasProperty("withoutWildAddonsFixture")).toString())
             arg("--nogui")
         }
     }
@@ -55,6 +57,21 @@ dependencies {
         runtimeOnly(fg.deobf("curse.maven:curios-309927:6418456"))
         runtimeOnly(fg.deobf("curse.maven:geckolib-388172:7553267"))
     }
+    // Compile-time target validation for mapped vanilla-method injections on the optional native food block.
+    compileOnly(fg.deobf("curse.maven:natures-spirit-1044992:6962783"))
+    // Typed public native APIs in nonshipping optional fixture adapters; never private discovery.
+    compileOnly(fg.deobf("curse.maven:dynamic-trees-plus-478155:7502535"))
+    compileOnly(fg.deobf("curse.maven:dynamic-trees-natures-spirit-1049917:6735910"))
+    // Optional addon native fixture; production signatures do not link optional addon classes.
+    if (!project.hasProperty("withoutWildAddonsFixture")) {
+        runtimeOnly(fg.deobf("curse.maven:dynamic-trees-plus-478155:7502535"))
+        runtimeOnly(fg.deobf("curse.maven:dynamic-trees-natures-spirit-1049917:6735910"))
+        runtimeOnly(fg.deobf("curse.maven:natures-spirit-1044992:6962783"))
+        runtimeOnly(fg.deobf("curse.maven:terrablender-563928:6290448"))
+        runtimeOnly(fg.deobf("curse.maven:dynamic-trees-quark-386753:5511673"))
+        runtimeOnly(fg.deobf("curse.maven:quark-243121:6427817"))
+        runtimeOnly(fg.deobf("curse.maven:zeta-968868:7335229"))
+    }
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
@@ -81,8 +98,20 @@ tasks.named<Jar>("jar") {
     manifest { attributes("Implementation-Version" to project.version) }
     finalizedBy("reobfJar")
 }
+// A source-only partial implementation must not accidentally become an activatable artifact.
+// Native pulse samples are intentionally absent until separately authorized calibration supplies them.
+val verifyGrowthReferences by tasks.registering {
+    val source = layout.projectDirectory.file("src/main/java/com/bettercontent/betterwildfruittrees/TreeGrowthRates.java")
+    inputs.file(source)
+    doLast {
+        val measured = Regex("Map\\.entry\\(\\\"([^\\\"]+)\\\", new Reference\\(").findAll(source.asFile.readText())
+            .map { it.groupValues[1] }.toSet()
+        val missing = setOf("saguaro", "coconut", "ancient", "saguaro_mega") - measured
+        check(missing.isEmpty()) { "NOT READY: unmeasured native growth references: $missing" }
+    }
+}
 val stageRuntimeJar by tasks.registering(Copy::class) {
-    dependsOn("reobfJar")
+    dependsOn("reobfJar", verifyGrowthReferences)
     from(layout.buildDirectory.file("reobfJar/output.jar"))
     into(layout.buildDirectory.dir("libs"))
     rename { "${base.archivesName.get()}-$version.jar" }

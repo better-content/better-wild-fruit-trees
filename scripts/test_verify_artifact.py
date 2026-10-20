@@ -1,4 +1,7 @@
 import unittest
+import io
+import json
+import zipfile
 import verify_artifact as n
 from verify_artifact import check_log, expected_warning, classify_log
 
@@ -70,7 +73,11 @@ class DiagnosticGateTest(unittest.TestCase):
         self.assertTrue(check_log("All 7 required tests passed"))
         self.assertTrue(check_log("All 14 required tests passed"))
         self.assertTrue(check_log("All 15 required tests passed"))
-        self.assertFalse(check_log("All 17 required tests passed"))
+        self.assertTrue(check_log("All 17 required tests passed"))
+        self.assertTrue(check_log("All 18 required tests passed"))
+        self.assertTrue(check_log("All 19 required tests passed"))
+        self.assertTrue(check_log("All 25 required tests passed"))
+        self.assertFalse(check_log("All 26 required tests passed"))
 
     def test_known_launcher_warning_only_at_warn(self):
         text = "[12:00:00] [main/WARN] [ne.mi.ja.se.JarSelector/]: Attempted to select two dependency jars from JarJar which have the same identification: Mod File:  and Mod File: . Using Mod File: "
@@ -80,7 +87,7 @@ class DiagnosticGateTest(unittest.TestCase):
     def test_unknown_warnings_never_gate_by_count_but_errors_block(self):
         for severity in ['WARN', 'ERROR', 'FATAL']:
             record = f'[12:00:00] [Server thread/{severity}] [minecraft/Test]: unexpected'
-            text = (record + '\n') * 20 + 'All 17 required tests passed'
+            text = (record + '\n') * 20 + 'All 26 required tests passed'
             self.assertEqual(severity != 'WARN', bool(check_log(text)))
             rows = classify_log(text)
             self.assertEqual(20, len(rows))
@@ -92,17 +99,17 @@ class DiagnosticGateTest(unittest.TestCase):
         for severity in ['INFO', 'WARN', 'ERROR', 'FATAL']:
             for message in ['Failed to save chunk', 'Could not decode recipe', 'AssertionError: test failed',
                             "Couldn't load tag", 'Unable to reload resources', 'java.lang.IllegalStateException: crash']:
-                text = f'[12:00:00] [Server thread/{severity}] [any/Logger]: {message}\nAll 17 required tests passed'
+                text = f'[12:00:00] [Server thread/{severity}] [any/Logger]: {message}\nAll 26 required tests passed'
                 self.assertTrue(check_log(text))
                 self.assertTrue(classify_log(text)[0]['blocking'])
-        self.assertTrue(check_log('ERROR unstructured crash\nAll 17 required tests passed'))
+        self.assertTrue(check_log('ERROR unstructured crash\nAll 26 required tests passed'))
 
     def test_warning_label_never_applies_to_error_or_other_logger(self):
         record = '[12:00:00] [main/WARN] [ne.mi.ja.se.JarSelector/]: Attempted to select two dependency jars from JarJar which have the same identification: Mod File:  and Mod File: . Using Mod File: '
         self.assertEqual('native_bootstrap', classify_log(record)[0]['category'])
         self.assertEqual('unclassified', classify_log(record.replace('ne.mi.ja.se.JarSelector/', 'other/'))[0]['category'])
         error = record.replace('/WARN]', '/ERROR]')
-        self.assertTrue(check_log(error + '\nAll 17 required tests passed'))
+        self.assertTrue(check_log(error + '\nAll 26 required tests passed'))
         self.assertNotEqual('native_bootstrap', classify_log(error)[0]['category'])
 
     def test_canonical_file_logger_is_equivalent_but_unrelated_class_is_not(self):
@@ -116,3 +123,61 @@ class DiagnosticGateTest(unittest.TestCase):
         self.assertTrue(expected_warning(text))
         self.assertFalse(expected_warning(text.replace("from null", "from 3.0")))
         self.assertFalse(expected_warning(text.replace("/WARN]", "/ERROR]")))
+
+
+class OptionalArchiveContractTest(unittest.TestCase):
+    """Synthetic archive-shape contracts, not a compiled/native artifact acceptance substitute."""
+    def entries(self):
+        package = 'com.bettercontent.betterwildfruittrees'
+        mapped = {'FruitBlockMixin', 'StaffMixin', 'RecipeManagerMixin', 'RootRemovalMixin', 'CoconutFoodBlockMixin'}
+        mixins = mapped | {'MegaSubstanceMixin', 'StaticSpeciesSelectorMixin', 'CactusFruitGenFeatureMixin',
+                           'PalmFruitGenFeatureMixin', 'CactusHardnessMixin', 'CoconutReplacementMixin', 'PodBlockMixin'}
+        config = {'required': True, 'injectors': {'defaultRequire': 1}, 'package': package + '.mixin',
+                  'plugin': package + '.compat.AddonMixins', 'mixins': sorted(mixins)}
+        entries = {'META-INF/MANIFEST.MF': 'MixinConfigs: better_wild_fruit_trees.mixins.json\n',
+                   'better_wild_fruit_trees.mixins.json': json.dumps(config),
+                   n.REFMAP: json.dumps({'mappings': {package.replace('.', '/') + '/mixin/' + name: {'method': 'mapped'} for name in mapped}})}
+        for name in mixins:
+            entries[package.replace('.', '/') + '/mixin/' + name + '.class'] = b'synthetic'
+        for name in ['AddonMixins', 'RootLedger', 'LedgerNetwork', 'RareResources', 'TConstructAxes']:
+            entries[package.replace('.', '/') + '/compat/' + name + '.class'] = b'synthetic'
+        return entries
+
+    def check(self, entries):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w') as archive:
+            for name, value in entries.items():
+                archive.writestr(name, value)
+        buffer.seek(0)
+        with zipfile.ZipFile(buffer) as archive:
+            n.check_jar(archive)
+
+    def test_complete_synthetic_shape_is_accepted(self):
+        self.check(self.entries())
+
+    def test_missing_optional_mapped_targets_or_plugin_blocks(self):
+        for name in ['RootRemovalMixin', 'CoconutFoodBlockMixin']:
+            entries = self.entries()
+            mapping = json.loads(entries[n.REFMAP])
+            mapping['mappings'] = {key: value for key, value in mapping['mappings'].items() if not key.endswith('/' + name)}
+            entries[n.REFMAP] = json.dumps(mapping)
+            with self.assertRaises(AssertionError): self.check(entries)
+        entries = self.entries()
+        del entries['com/bettercontent/betterwildfruittrees/compat/AddonMixins.class']
+        with self.assertRaises(AssertionError): self.check(entries)
+
+    def test_optional_native_path_cannot_be_omitted_from_registration(self):
+        entries = self.entries()
+        config = json.loads(entries['better_wild_fruit_trees.mixins.json'])
+        config['mixins'].remove('PodBlockMixin')
+        entries['better_wild_fruit_trees.mixins.json'] = json.dumps(config)
+        with self.assertRaises(AssertionError): self.check(entries)
+
+    def test_fixture_or_optional_upstream_implementation_must_not_ship(self):
+        for path in ['com/bettercontent/betterwildfruittrees/gametest/OptionalTreeGameTests.class',
+                     'com/ferreusveritas/dynamictreesplus/tree/CactusSpecies.class',
+                     'net/hibiscus/naturespirit/blocks/CoconutBlock.class',
+                     'xueluoanping/dtnatures_spirit/systems/featuregen/PalmFruitGenFeature.class',
+                     'org/violetmoon/quark/content/world/item/AncientFruitItem.class']:
+            entries = self.entries(); entries[path] = b'synthetic'
+            with self.assertRaises(AssertionError): self.check(entries)

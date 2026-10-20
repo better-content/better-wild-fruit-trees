@@ -17,6 +17,7 @@ public abstract class TransformMixin {
     @Shadow @Final private Species toSpecies;
     @Inject(method = "apply", at = @At("HEAD"), cancellable = true)
     private void wildFruit$noTransformInto(Level level, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-        if (WildFruitPolicy.protectsSpecies(toSpecies.getRegistryName().toString())) cir.setReturnValue(false);
+        if (WildFruitPolicy.protectsSpecies(toSpecies.getRegistryName().toString())
+                || com.bettercontent.betterwildfruittrees.LoadedTreeLookup.isProtected(level, pos)) cir.setReturnValue(false);
     }
 }

@@ -12,6 +12,73 @@ Contributor instructions are in [AGENTS.md](AGENTS.md). The workspace authority 
 maintained in the [shared policy index](https://github.com/better-content/better-content-modpack/blob/main/docs/README.md);
 that development-policy link does not introduce a runtime modpack dependency.
 
+## Optional food-tree extension — source-only, not ready
+
+The working source extends the complete fixed-location resource policy to exactly
+`dynamictreesplus:saguaro_cactus`, `dtnatures_spirit:coconut` and `dtquark:ancient`.
+**This extension is uncompiled, untested and undeployed. No matching runtime JAR has been
+built or installed.** The established thirteen-species behavior described below remains
+the compatibility contract, not evidence that these additions have passed it.
+
+| Resource | Native ripe product | Full-size energy | Native adapter |
+| --- | --- | ---: | --- |
+| Saguaro | `dynamictreesplus:saguaro_cactus_seed` | 10 | Cactus fruit |
+| Coconut | `natures_spirit:coconut` | 25 | Attached/falling pod |
+| Ancient | `quark:ancient_fruit` | 60 | Dynamic fruit |
+| Proven saguaro-origin mega cactus | No invented fruit production | 45 | Persisted conversion origin |
+
+The draft applies eightfold mature product, success-only 2,500-active-tick replacement credit
+with a two-replacement bank, minimum hardness 80/native ×16, functional diamond-or-better axes,
+threefold native soil longevity and the additional 1-in-256 native-selector gate. Woody growth
+uses the established growth-only taper divisor 2.5; cacti keep native discrete thickness.
+Coconut's root allowance replaces its native extra 1/16 production throttle while preserving the
+random draw and native seasonal/size/geometry checks. Cactus hardness has a separate base hook:
+its branch does not inherit the established hardwood hook on `BasicBranchBlock`.
+Rejected saguaro selects native non-fruiting pillar:pipe cacti in a 6:1 ratio; other rejections
+remain unhandled for native ordinary-tree fallback. Ordinary selections spend no extra RNG.
+No global density, biome preference, JoCode, generated-size/fertility, scan/backfill or culling
+change is intended. Cocoa, archwood pods, Aether trees, ordinary cacti and unmarked historical
+mega cacti remain outside this policy.
+
+Food/product identity is separate from propagation stock. Saguaro's edible seed and ancient
+fruit retain native food behavior. Whole coconuts remain placeable native food/processing blocks:
+DT must not destroy them as rejected saplings, but native coconut germination and
+`natures_spirit:coconut_sprout` propagation are closed. Dedicated seeds/saplings/leaves, native
+sprouts, recipe/trade/loot stock, staff and transformation routes are covered by the draft;
+food, native cooking and unrelated stock are not blanket-filtered.
+
+These three roots use a dimension `SavedData` ledger, schema 1, rather than requiring a
+species block entity. Credit is persisted; runtime clocks are not. Native saguaro→mega conversion
+records exact origin at the same root, inherits protection/growth/soil identity and synchronizes
+loaded chunk provenance to clients. Unmarked mega roots are never guessed to be saguaro.
+Root removal/lazy loaded validation clears stale records; chunk suspension prevents offline
+catch-up. Unknown ledger schemas retain their bytes and reject use rather than becoming empty
+ledgers. The old thirteen species retain their species-root block-entity storage.
+
+**Release blockers:** four independent native growth references are missing: `saguaro`,
+`coconut`, `ancient`, and `saguaro_mega`. Required-reference access throws; unit contracts and
+`verifyGrowthReferences`/`stageRuntimeJar` deliberately fail while entries are absent. Native
+rates alone are not completed calibration. Saguaro/mega use fixed discrete thickness, so the
+ordinary full-trunk-radius endpoint is invalid: their structural adult-reference definition,
+measurement and endpoint acceptance still need review. No arbitrary pulse count, last observed
+change or bounded-probe limit is accepted as maturity.
+
+Seven additional main-namespace GameTests are authored (26 total including the two lemon tests),
+not run: stock/player mining, food/ripe/falling harvest, native conversion/provenance/reload,
+weighted/direct rarity and 6:1 fallback, saved success-only allowance, measured-reference native
+pulse cadence plus eight-seed coconut/ancient growth, and native cactus/palm production hooks.
+They also distinguish fixture-present from fixture-absent runs. Cactus endpoint acceptance still
+needs authoring once the endpoint is resolved; real client provenance/relog/dimension behavior
+and representative native generation remain runtime acceptance work, not inferred from serialization.
+
+The separate `better_wild_fruit_calibration` diagnostic namespace requires all pinned addons.
+`-PoptionalGrowthCalibration runGameTestServer` authors eight seeded bounded probes per form;
+woody probes report full-trunk pulses, while cactus probes report geometry only. Its single
+successful diagnostic is **not** the 26-test production gate and never fills source references.
+Future execution requires separate explicit authorization, registered retained fixture/evidence
+paths and the whole-lifetime workspace POSIX Forge cache lock. Do not run `clean`, staging,
+pack deployment, Packwiz refresh or packaging from this source-work handoff.
+
 ## Requirements
 
 Install this mod on both client and server, alongside:
@@ -125,7 +192,11 @@ an unavailable root leaves native hardness unchanged.
 Normal player breaking requires an axe supporting Forge's `AXE_DIG` action with a
 registered diamond-or-higher tier (Forge tier ordering, not item IDs). A server break-event
 restriction prevents removal; client/server mining progress is zero with unsuitable tools.
-The same rule covers the berry bushes below, whose hardness is 80. Picking needs no axe.
+The same rule covers the berry bushes below and Fruits Delight's `fruitsdelight:lemon_tree`,
+with minimum hardness 80. Lemon is a **mining-only** inclusion at every age and on both
+halves: native planting/seeds, growth, bonemeal, geometry, worldgen, loot and right-click
+harvesting remain unchanged. It is not part of the managed berry-field inventory.
+Picking needs no axe.
 Fire, explosions, non-player root destruction, and native third-party machine removal remain unchanged;
 Forge `FakePlayer` machine miners are explicitly exempt from the breaking/progress gate,
 but **not** from planting restrictions. High hardness still applies to them. Machines
@@ -245,9 +316,15 @@ Apple protection targets `dynamictrees:apple_oak`, not ordinary `dynamictrees:oa
 ./gradlew --no-daemon clean verifyFull stageRuntimeJar
 ```
 
+These are documented gates, not authorization to execute them for the incomplete extension.
+After authorization, first compile sources, run the isolated optional diagnostic, review/measure
+the cactus endpoint and all four references, and implement its missing endpoint acceptance.
+Only then can the full gates pass. No gate was run for this extension.
+
 The wrapper downloads pinned Forge/mod dependencies. `verifyFast` runs Minecraft-free
 contracts; `verifyFull` also runs isolated headless Forge GameTests, a native diagnostic
-gate, and production archive/refmap checks. Tests cover all thirteen species, native
+gate, and production archive/refmap checks. The main native gate requires exactly 26 tests:
+the established nineteen (including lemon) plus seven optional-tree contracts. Tests cover the thirteen established species, native
 planting/harvest/mining/staff paths, replenishment attempts, full resource reload, and
 ordinary-tree controls. The fixture includes Patchouli 85 so DT's optional guide recipe
 has its book item. Fixture-only defaults disable DT chunk decoration to avoid racing
@@ -261,12 +338,20 @@ Ars Nouveau 4.12.7, Curios and GeckoLib to exercise optional sourceberry, plus
 TConstruct 3.11.2.166 and Mantle 1.11.104 to exercise native hand/broad axes, material tiers,
 native diamond modifier addition/removal, broken/blank/pickaxe negatives, real-player
 removal/progress, and ordinary-tree/machine controls. Use
-`-PwithoutTConFixture -PwithoutArsFixture` for the clean companion absent-optional-mod gate.
-Both flags affect only fixture runtime dependencies; the production integrations stay optional. Prior GameTest worlds are retained
+`-PwithoutTConFixture -PwithoutArsFixture -PwithoutWildAddonsFixture` for the companion
+absent-optional-mod gate. The default fixture also declares DT Plus 1.2.2, DT Nature's Spirit
+1.3/Nature's Spirit 2.2.5, TerraBlender 3.0.1.10, DT Quark 2.5.3/Quark 4.0-462 and Zeta
+1.0-31 using pinned Curse Maven file IDs in `build.gradle.kts`; do not substitute warmup-tree
+JARs for declared fixture resolution. Fixture flags alter runtime dependencies only; the native
+coconut target and typed nonshipping cactus/falling-pod fixture APIs remain compile-only;
+production integrations stay optional. Fixtures use public typed construction/observer APIs, not
+private-method discovery or runtime proxies. Prior GameTest worlds are retained
 under `run-gametest/retained-worlds/` before each fresh native invocation.
 Local Gradle invocations must hold the workspace POSIX `fcntl` Forge cache lock for
-the complete child-process lifetime (canonical `test-control.main.kts run source --repo`
-is preferred); BSD `flock` is not interoperable with the canonical Java lock.
+the complete child-process lifetime: `/home/dev/better-content-modpack/.worklane/forge-cache.lock`.
+Canonical `test-control.main.kts run source --repo better-wild-fruit-trees` is preferred;
+the controller must resolve that repository-root lock, not the distinct sibling
+`/home/dev/.worklane/forge-cache.lock`. BSD `flock` is not interoperable with the canonical Java lock.
 The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
 real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
 160-item replacement accounting, all protected species' persistent root ownership and native
@@ -276,7 +361,7 @@ Rarity fixtures enumerate every field gate outcome and all 256 tree gate outcome
 every protected species' actual pinned upstream weighted rule, proving native ordinary fallback,
 unchanged density/chance selectors and ordinary-species RNG behavior. They do not establish
 representative-seed landscape density or exploration time.
-Growth-rate fixtures run eight seeded sunlit native fresh-growth samples for each species,
+Established thirteen-species growth-rate fixtures run eight seeded sunlit native fresh-growth samples per species,
 checking the adult-trunk reference against its calibration with a 20% sample-mean tolerance.
 A separate stratified 4,096-draw native `Species.grow` test per species checks actual pulse
 frequency, native emitted energy, full-size branch taper, obsolete-age/calendar/reload invariance,

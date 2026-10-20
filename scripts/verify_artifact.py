@@ -124,8 +124,8 @@ def classify_log(text):
 def check_log(text):
     findings = [item['record'] for item in classify_log(text) if item['blocking']]
     counts = re.findall(r"All (\d+) required tests passed", text)
-    if not counts or int(counts[-1]) != 17:
-        findings.append("Missing complete native GameTest success (exactly seventeen required tests)")
+    if not counts or int(counts[-1]) != 26:
+        findings.append("Missing complete native GameTest success (exactly twenty-six required tests)")
     return findings
 
 
@@ -133,15 +133,23 @@ def check_jar(archive):
     names = archive.namelist()
     assert len(names) == len(set(names)), "Duplicate archive entries"
     assert not any("/gametest/" in name or name.startswith("gameteststructures/") for name in names), "Shipping test fixture"
-    assert not any(name.startswith("slimeknights/") for name in names), "Bundling optional upstream implementation"
+    assert not any(name.startswith(("slimeknights/", "com/ferreusveritas/dynamictreesplus/", "xueluoanping/dtnatures_spirit/",
+                                    "net/hibiscus/naturespirit/", "org/violetmoon/")) for name in names), "Bundling optional upstream implementation"
     assert "com/bettercontent/betterwildfruittrees/compat/TConstructAxes.class" in names, "Missing optional typed tier adapter"
     manifest = archive.read("META-INF/MANIFEST.MF").decode()
     assert "MixinConfigs: better_wild_fruit_trees.mixins.json" in manifest, "Missing Mixin manifest"
     refmap = json.loads(archive.read(REFMAP))
-    for name in ("FruitBlockMixin", "StaffMixin", "RecipeManagerMixin"):
+    for name in ("FruitBlockMixin", "StaffMixin", "RecipeManagerMixin", "RootRemovalMixin", "CoconutFoodBlockMixin"):
         assert any(key.endswith("/" + name) and mapping for key, mapping in refmap["mappings"].items()), "Missing mapped target: " + name
     config = json.loads(archive.read("better_wild_fruit_trees.mixins.json"))
     assert config["required"] and config["injectors"]["defaultRequire"] == 1, "Fail-open injection policy"
+    plugin = "com.bettercontent.betterwildfruittrees.compat.AddonMixins"
+    assert config.get("plugin") == plugin and plugin.replace(".", "/") + ".class" in names, "Missing optional-addon mixin gating"
+    required = {"MegaSubstanceMixin", "RootRemovalMixin", "StaticSpeciesSelectorMixin", "CactusFruitGenFeatureMixin",
+                "PalmFruitGenFeatureMixin", "CactusHardnessMixin", "CoconutFoodBlockMixin", "CoconutReplacementMixin", "PodBlockMixin"}
+    assert required.issubset(config["mixins"]), "Missing optional tree native path"
+    for helper in ("RootLedger", "LedgerNetwork", "RareResources"):
+        assert "com/bettercontent/betterwildfruittrees/compat/" + helper + ".class" in names, "Missing optional tree helper " + helper
     for name in config["mixins"]:
         assert config["package"].replace(".", "/") + "/" + name + ".class" in names, "Missing Mixin class"
 

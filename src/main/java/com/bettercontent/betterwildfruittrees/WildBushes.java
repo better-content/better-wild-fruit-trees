@@ -17,6 +17,9 @@ public final class WildBushes {
         "fruitsdelight:blueberry_bush", "fruitsdelight:cranberry_bush", "ars_nouveau:sourceberry_bush");
     private static final Set<net.minecraft.resources.ResourceLocation> IDS = BLOCKS.stream()
         .map(net.minecraft.resources.ResourceLocation::new).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    // Mining-only: never include lemon in the berry geometry/planting/production selectors.
+    private static final net.minecraft.resources.ResourceLocation LEMON_TREE =
+        new net.minecraft.resources.ResourceLocation("fruitsdelight", "lemon_tree");
     private WildBushes() {}
     public static boolean isBush(BlockState state) {
         return IDS.contains(ForgeRegistries.BLOCKS.getKey(state.getBlock()));
@@ -29,7 +32,8 @@ public final class WildBushes {
         return state;
     }
     public static boolean protectedResource(BlockState state, BlockGetter level, BlockPos pos) {
-        return isBush(state) || LoadedTreeLookup.isProtected(level, pos);
+        return isBush(state) || LEMON_TREE.equals(ForgeRegistries.BLOCKS.getKey(state.getBlock()))
+            || LoadedTreeLookup.isProtected(level, pos);
     }
     public static boolean restrictPlayer(net.minecraft.world.entity.player.Player player) {
         return !(player instanceof net.minecraftforge.common.util.FakePlayer);

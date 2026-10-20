@@ -24,13 +24,21 @@ public abstract class SpeciesMixin {
     private void wildFruit$energy(CallbackInfoReturnable<Float> cir) {
         if (wildFruit$protected()) cir.setReturnValue(WildFruitPolicy.energy(wildFruit$id(), cir.getReturnValue()));
     }
+    @Inject(method = "getEnergy", at = @At("RETURN"), cancellable = true)
+    private void wildFruit$inheritedEnergy(Level level, BlockPos pos, CallbackInfoReturnable<Float> cir) {
+        if (com.bettercontent.betterwildfruittrees.compat.RootLedger.inherited(level, pos, wildFruit$id()))
+            cir.setReturnValue(cir.getReturnValue() * 2.5F);
+    }
     @Inject(method = "getGrowthRate", at = @At("RETURN"), cancellable = true)
     private void wildFruit$growthRate(Level level, BlockPos pos, CallbackInfoReturnable<Float> cir) {
         if (wildFruit$protected()) cir.setReturnValue(com.bettercontent.betterwildfruittrees.TreeGrowthRates.rate(wildFruit$id(), cir.getReturnValue()));
+        else if (com.bettercontent.betterwildfruittrees.compat.RootLedger.inherited(level, pos, wildFruit$id()))
+            cir.setReturnValue(com.bettercontent.betterwildfruittrees.TreeGrowthRates.megaRate(cir.getReturnValue()));
     }
     @Inject(method = "getSoilLongevity", at = @At("RETURN"), cancellable = true)
     private void wildFruit$longevity(Level level, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        if (wildFruit$protected()) cir.setReturnValue(cir.getReturnValue() * WildFruitPolicy.SOIL_LONGEVITY_MULTIPLIER);
+        if (wildFruit$protected() || com.bettercontent.betterwildfruittrees.compat.RootLedger.inherited(level, pos, wildFruit$id()))
+            cir.setReturnValue(cir.getReturnValue() * WildFruitPolicy.SOIL_LONGEVITY_MULTIPLIER);
     }
     @Inject(method = {"shouldDropSeeds", "isTransformable"}, at = @At("HEAD"), cancellable = true)
     private void wildFruit$noPropagation(CallbackInfoReturnable<Boolean> cir) {

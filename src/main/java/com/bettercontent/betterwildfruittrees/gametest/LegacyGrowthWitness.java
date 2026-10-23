@@ -24,7 +24,8 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = WildFruitTrees.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.DEDICATED_SERVER)
 public final class LegacyGrowthWitness {
     private static boolean enabled() {
-        return Boolean.getBoolean("forge.gameTestServer")
+        return Boolean.getBoolean("better_wild_fruit_trees.growthDiagnostics")
+            && Boolean.getBoolean("forge.gameTestServer")
             && "better_wild_fruit_trees".equals(System.getProperty("forge.enabledGameTestNamespaces"));
     }
     private static boolean inside(BlockPos pos) {
@@ -84,11 +85,13 @@ public final class LegacyGrowthWitness {
     }
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public static void joined(EntityJoinLevelEvent event) {
+        if (!enabled()) return;
         if (event.getLevel() instanceof ServerLevel level && event.getEntity() instanceof FallingTreeEntity tree)
             birth(level, tree, "join", event.isCanceled());
     }
     @SubscribeEvent
     public static void left(EntityLeaveLevelEvent event) {
+        if (!enabled()) return;
         if (event.getLevel() instanceof ServerLevel level && event.getEntity() instanceof FallingTreeEntity tree)
             birth(level, tree, "leave", false);
     }

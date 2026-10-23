@@ -7,10 +7,36 @@ age interval, endpoint, references or strict tolerance. A full-file SHA-256 cont
 only the four new observation statements/scope lines and requires byte-for-byte equality
 with the witness-bearing original fixture at `8d4c441`.
 
+## Default qualification is diagnostic-free
+
+Default/`-PgrowthDiagnostics=false` native qualification keeps all required26 tests and the
+unchanged fixture arithmetic, roots, seeds, warmup, clocks, endpoints, references and tolerance.
+It does **not** source/register `nativeProbe` or its four hooks. `OriginalLightTrace.begin` returns
+before constructing a session or calling ordered observers unless the diagnostic JVM property
+is true. The four original fixture statements/scope lines remain unchanged and become no-ops.
+`LegacyGrowthWitness` also requires opt-in before sample scans or event world/entity queries;
+its Forge event entry handlers return immediately when disabled. No actor purge/barrier is added.
+
+Use explicit validated `-PgrowthDiagnostics=true` only for optional native diagnostics.
+`-PoriginalEventTrace=true` or `-PlightQueueProof=true` implies diagnostics automatically;
+combining either with explicit `-PgrowthDiagnostics=false` is rejected. The two diagnostic
+profiles remain mutually exclusive and are **deferred from the current fresh-Dist critical path**.
+Client/ordinary server runs receive neither diagnostic property, source set nor configuration.
+The source set and static API/AP/archive controls remain available; compiled evidence on disk
+is not evidence of a runtime classpath. Actual RunConfig guards check both all-source and mod-source
+sets, exact diagnostic-free/opted-in SDK args, and native-only properties. The before-own-prepare
+receipt records `growthDiagnostics`, `actualAllSourceSets` and `actualDiagnosticMixin` (`NONE` by default).
+Existing diagnostic class manifests remain restricted to their explicit ordered/queue profiles.
+
+Source log gates require no light-trace/witness markers; no required26 assertion or error/WARN
+classification was removed or filtered. This isolates optional observation, not a native timing
+fence or protocol repair. Any eventual pass qualifies only the current unobserved default;
+it cannot establish that observers caused historical variation. Historical failures/evidence remain.
+
 ## Isolation and actual observations
 
-`nativeProbe` is a separate source set added only to the `gameTestServer` mod sources.
-Its required mixin configuration is an explicit native-run argument, not a global Mixin
+`nativeProbe` is a separate source set added only to explicitly opted-in `gameTestServer` mod sources.
+Its required mixin configuration is an explicit opted-in native-run argument, not a global Mixin
 configuration or manifest entry. Client/server runs and the runtime JAR do not include
 its classes/resources. The JDK-only ledger lives alongside the already excluded GameTest
 classes. The artifact gate rejects both native trace resources and all GameTest classes.

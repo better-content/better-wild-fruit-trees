@@ -21,6 +21,7 @@ public final class OriginalLightTrace {
     public static boolean publicationActive() { return active != null; }
 
     public static void begin(String fruit, int sample) {
+        if (!Boolean.getBoolean("better_wild_fruit_trees.growthDiagnostics")) return;
         // Only the original eight orange samples. No world/registry/codec references.
         if (fruit.equals("orange") && sample >= 0 && sample < 8) {
             Session s = new Session(sample);

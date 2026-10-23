@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public final class StateCodebookSelfTest {
     static void check(boolean ok, String message) { if (!ok) throw new AssertionError(message); }
     public static void main(String[] args) throws Exception {
+        System.setProperty("better_wild_fruit_trees.growthDiagnostics", "true"); // explicit diagnostic control
         Object a = new String("same"), b = new String("same"), c = new Object();
         var builder = new StateCodebook.Builder<Object>(3);
         builder.add(a, "fixture:tree", Map.of("z", "2", "a", "1"));

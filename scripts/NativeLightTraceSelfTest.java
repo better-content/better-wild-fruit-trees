@@ -33,6 +33,16 @@ public final class NativeLightTraceSelfTest {
         var output = new ByteArrayOutputStream();
         var prior = System.out;
         System.setOut(new PrintStream(output));
+        System.clearProperty("better_wild_fruit_trees.growthDiagnostics");
+        OriginalLightTrace.begin("orange", 0);
+        OriginalLightTrace.pulse(1);
+        OriginalLightTrace.finish();
+        check(!OriginalLightTrace.publicationActive() && !OriginalLightTrace.ownerActive() && output.size() == 0,
+            "Default observation allocated/activated/emitted");
+        System.setProperty("better_wild_fruit_trees.growthDiagnostics", "false");
+        OriginalLightTrace.begin("orange", 0);
+        check(!OriginalLightTrace.publicationActive(), "Explicit false activated trace");
+        System.setProperty("better_wild_fruit_trees.growthDiagnostics", "true");
         try {
             OriginalLightTrace.stateCodesReady(true);
             var leaves = new LeavesLightTraceMixin() {};

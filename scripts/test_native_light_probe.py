@@ -36,13 +36,34 @@ class OriginalLightProbeTest(unittest.TestCase):
         build = (ROOT/'build.gradle.kts').read_text()
         self.assertIn('val nativeProbe = sourceSets.create("nativeProbe")', build)
         native_run = build.split('create("gameTestServer") {', 1)[1].split('\n    }\n}', 1)[0]
-        self.assertIn('source(nativeProbe)', native_run)
-        self.assertIn('args("--mixin.config", "'+config_name+'")', native_run)
+        diagnostic_block = native_run.split('if (growthDiagnosticsEnabled) {', 1)[1].split('\n            }', 1)[0]
+        self.assertIn('source(nativeProbe)', diagnostic_block)
+        self.assertIn('args("--mixin.config", "'+config_name+'")', diagnostic_block)
+        self.assertIn('property("better_wild_fruit_trees.growthDiagnostics", "true")', diagnostic_block)
+        self.assertIn('growthDiagnosticsValue == null || growthDiagnosticsValue in setOf("true", "false")', build)
+        self.assertIn('growthDiagnosticsValue != "false" || (!originalEventTrace && !lightQueueProofEnabled)', build)
+        expression = build.split('val growthDiagnosticsEnabled = ', 1)[1].splitlines()[0].replace('||', 'or')
+        for manual in (None, 'false', 'true'):
+            for ordered, queue in ((False, False), (True, False), (False, True)):
+                effective = eval(expression, {}, dict(growthDiagnosticsValue=manual, originalEventTrace=ordered, lightQueueProofEnabled=queue))
+                self.assertEqual(manual == 'true' or ordered or queue, effective)
+                if manual in (None, 'false') and not ordered and not queue:self.assertFalse(effective)
+        self.assertIn('if (native && growthDiagnosticsEnabled) expectedSources.add(nativeProbe)', build)
+        self.assertIn('run.allSources.toSet() == expectedSources', build)
+        self.assertIn('run.mods.getByName("better_wild_fruit_trees").sources.toSet() == expectedSources', build)
+        self.assertIn('val diagnosticArgs = if (growthDiagnosticsEnabled)', build)
+        self.assertIn('receipt.setProperty("growthDiagnostics", growthDiagnosticsEnabled.toString())', build)
         self.assertEqual(1, build.count('source(nativeProbe)'))
         self.assertNotIn('config("'+config_name+'")', build)
         self.assertIn('"**/*native-light*"', build)
         self.assertFalse((ROOT/'src/main/resources'/config_name).exists())
         ledger = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java').read_text()
+        self.assertLess(ledger.index('if (!Boolean.getBoolean("better_wild_fruit_trees.growthDiagnostics")) return;'), ledger.index('Session s = new Session(sample);'))
+        witness = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/LegacyGrowthWitness.java').read_text()
+        self.assertIn('return Boolean.getBoolean("better_wild_fruit_trees.growthDiagnostics")', witness)
+        for method, query in (('static void sample(', 'h.getLevel()'), ('public static void joined(', 'event.getLevel()'), ('public static void left(', 'event.getLevel()')):
+            body = witness.split(method, 1)[1]
+            self.assertLess(body.index('if (!enabled()) return;'), body.index(query))
         self.assertNotIn('net.minecraft', ledger)
         self.assertNotIn('net.minecraftforge', ledger)
         self.assertIn('kind == WRITE ? mix(hashes[p][kind], pos)', ledger)

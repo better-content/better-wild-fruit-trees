@@ -18,6 +18,10 @@ val originalEventTraceValue = providers.gradleProperty("originalEventTrace").orN
 require(originalEventTraceValue == null || originalEventTraceValue in setOf("true", "false")) { "originalEventTrace must be true or false" }
 val originalEventTrace = originalEventTraceValue == "true"
 require(!lightQueueProofEnabled || !originalEventTrace) { "Queue proof and original ordered growth profile are separate experiments" }
+val growthDiagnosticsValue = providers.gradleProperty("growthDiagnostics").orNull
+require(growthDiagnosticsValue == null || growthDiagnosticsValue in setOf("true", "false")) { "growthDiagnostics must be true or false" }
+require(growthDiagnosticsValue != "false" || (!originalEventTrace && !lightQueueProofEnabled)) { "Explicit diagnostic profiles cannot disable growthDiagnostics" }
+val growthDiagnosticsEnabled = growthDiagnosticsValue == "true" || originalEventTrace || lightQueueProofEnabled
 val calibrationEnabled = project.hasProperty("optionalGrowthCalibration")
 val calibrationForms = providers.gradleProperty("optionalGrowthCalibrationForms").orNull ?: "all"
 require(calibrationForms in setOf("all", "ancient", "saguaro,saguaro_mega")) { "Unknown/empty/duplicate calibration profile" }
@@ -62,8 +66,11 @@ minecraft {
         create("client")
         create("server") { arg("--nogui") }
         create("gameTestServer") {
-            mods.named("better_wild_fruit_trees") { source(nativeProbe) }
-            args("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json")
+            if (growthDiagnosticsEnabled) {
+                mods.named("better_wild_fruit_trees") { source(nativeProbe) }
+                args("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json")
+                property("better_wild_fruit_trees.growthDiagnostics", "true")
+            }
             if (lightQueueProofEnabled) {
                 mods.named("better_wild_fruit_trees") { source(lightQueueProof!!) }
                 property("better_wild_fruit_trees.lightQueueProof", "true")
@@ -273,6 +280,12 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             check((run.properties["better_wild_fruit_trees.calibration.forms"] != null) == (native && calibrationEnabled)) { "Calibration property escaped native diagnostic RunConfig" }
             check(run.properties["better_wild_fruit_trees.lightQueueProof"] == if (native && lightQueueProofEnabled) "true" else null) { "Queue proof flag escaped native RunConfig" }
             check(run.properties["better_wild_fruit_trees.originalEventTrace"] == if (native && originalEventTrace) "true" else null) { "Ordered observation flag escaped native RunConfig" }
+            check(run.properties["better_wild_fruit_trees.growthDiagnostics"] == if (native && growthDiagnosticsEnabled) "true" else null) { "Growth diagnostics escaped native opt-in RunConfig" }
+            val expectedSources = mutableSetOf(sourceSets.main.get())
+            if (native && growthDiagnosticsEnabled) expectedSources.add(nativeProbe)
+            if (native && lightQueueProofEnabled) expectedSources.add(lightQueueProof!!)
+            check(run.allSources.toSet() == expectedSources) { "Native/ordinary source classpath drift: ${run.allSources.map { it.name }}" }
+            check(run.mods.getByName("better_wild_fruit_trees").sources.toSet() == expectedSources) { "Diagnostic mod source escaped explicit opt-in" }
             if (native) {
                 check(file(run.workingDirectory).canonicalFile == nativeAttempt.canonicalFile) { "Native RunConfig directory drift" }
                 check(run.properties["forge.enabledGameTestNamespaces"] == expectedNamespace) { "Native namespace drift" }
@@ -281,7 +294,8 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 val pinnedSdkArgs = listOf("--launchTarget", "forgegametestserveruserdev", "--gameDir", ".",
                     "--fml.forgeVersion", "47.4.13", "--fml.mcVersion", "1.20.1", "--fml.forgeGroup",
                     "net.minecraftforge", "--fml.mcpVersion", "20230612.114412")
-                val originalExpectedArgs = pinnedSdkArgs + listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json", "--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")
+                val diagnosticArgs = if (growthDiagnosticsEnabled) listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json") else emptyList()
+                val originalExpectedArgs = pinnedSdkArgs + diagnosticArgs + listOf("--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")
                 val expectedArgs = if (lightQueueProofEnabled) originalExpectedArgs.dropLast(2) + listOf("--mixin.config", "better_wild_fruit_trees.light-queue-proof.mixins.json") + originalExpectedArgs.takeLast(2) else originalExpectedArgs
                 check(effectiveArgs == expectedArgs) {
                     "Native effective SDK/authored args override: $effectiveArgs"
@@ -298,6 +312,9 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 receipt.setProperty("actualRunConfigDirectory", file(run.workingDirectory).canonicalPath)
                 receipt.setProperty("actualNamespace", run.properties["forge.enabledGameTestNamespaces"].toString())
                 receipt.setProperty("actualArgs", run.args.joinToString(" "))
+                receipt.setProperty("growthDiagnostics", growthDiagnosticsEnabled.toString())
+                receipt.setProperty("actualAllSourceSets", run.allSources.map { it.name }.distinct().sorted().joinToString(","))
+                receipt.setProperty("actualDiagnosticMixin", if (growthDiagnosticsEnabled) "better_wild_fruit_trees.native-light.mixins.json" else "NONE")
                 receipt.setProperty("profile", if (lightQueueProofEnabled) "light-queue-proof-v1-required29" else if (calibrationEnabled) calibrationForms else "main26")
                 receipt.setProperty("worldAbsent", "true")
                 receipt.setProperty("propertiesAbsent", "true")

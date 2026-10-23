@@ -210,6 +210,28 @@ class CalibrationProfiles(unittest.TestCase):
                       'Empty allowance placed native product', 'Native placements and allowance debits disagree'):
             self.assertIn(token, consumer)
 
+    def test_legacy_witnesses_are_read_only_and_outside_measured_loop(self):
+        witness = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/LegacyGrowthWitness.java').read_text()
+        source = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/GrowthRateGameTests.java').read_text()
+        for forbidden in ('setBlock(', 'setSeed(', 'nextInt(', 'nextFloat(', 'RandomSource.create(',
+                          'runAfterDelay(', 'addRegionTicket(', '.tick(', '.discard(', 'setFertility(',
+                          'getChunk(', 'setDayTime('):
+            self.assertNotIn(forbidden, witness)
+        for required in ('entityIdentity=', 'entitySpecies=', 'resolved=', 'geometryHash=', 'foreignLeaves=',
+                         'unloadedCells=', 'testTick=', 'gameTick=', 'energy=', 'kit=', 'currentRoot=',
+                         'EntityJoinLevelEvent', 'EntityLeaveLevelEvent', 'level.hasChunkAt(pos)'):
+            self.assertIn(required, witness)
+        self.assertEqual(source.count('LegacyGrowthWitness.sample('), 2)
+        settled = source.index('LegacyGrowthWitness.sample(h, root, tree, sample, "settled")')
+        seed = source.index('level.random.setSeed(54321 + 104729L*sample)')
+        self.assertLess(settled, seed)
+        loop = source[source.index('for (int pulse=1;'):source.index('h.assertTrue(firstMax > 0')]
+        self.assertNotIn('LegacyGrowthWitness', loop)
+        self.assertIn('h.runAfterDelay(5, () -> {', source)
+        self.assertIn('Math.abs(measured/reference-1) < .20', source)
+        self.assertIn('timeoutTicks = 2000', source)
+        self.assertIn('if (branch.getRadius(level.getBlockState(root.above())) == tree.getMaxBranchRadius())', loop)
+
     def test_release_binding_is_unused_and_calibration_remains_isolated(self):
         build = (ROOT/'build.gradle.kts').read_text()
         self.assertEqual(1, build.count('System.getenv("BC_CUSTOM_MOD_JAR_DIR")'))

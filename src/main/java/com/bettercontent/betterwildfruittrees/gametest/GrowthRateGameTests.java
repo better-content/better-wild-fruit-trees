@@ -41,9 +41,11 @@ public final class GrowthRateGameTests {
         level.setBlock(root.above(2), tree.getLeavesProperties().getDynamicLeavesState(4), 2);
         level.setDayTime(6000);
         level.updateSkyBrightness();
+        LegacyGrowthWitness.sample(h, root, tree, sample, "constructed");
         // GameTest origins are below this native world's terrain. Use an above-ground,
         // unobstructed plot and let its real light settle; never bypass leaf suitability.
         h.runAfterDelay(5, () -> {
+            LegacyGrowthWitness.sample(h, root, tree, sample, "settled");
             h.assertTrue(level.getMaxLocalRawBrightness(root.above(3)) >= 13, "Calibration fixture is not sunlit " + id);
             ((com.ferreusveritas.dynamictrees.block.rooty.RootyBlock)level.getBlockState(root).getBlock()).setFertility(level,root,15);
             var random = RandomSource.create(12345 + 104729L*sample);

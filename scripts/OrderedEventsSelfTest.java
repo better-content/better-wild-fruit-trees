@@ -47,7 +47,9 @@ public final class OrderedEventsSelfTest {
         OrderedEvents.configure(false,dir,p);OrderedEvents.begin(1);check(!OrderedEvents.ownerActive()&&!Files.exists(dir),"flag false no arrays/output");
         OrderedEvents.configure(true,dir,p);OrderedEvents.begin(1);OrderedEvents.pulse(1);OrderedEvents.queryBegin(true,10);OrderedEvents.sky(10,4,1,0,1);OrderedEvents.queryEnd(true,10,4);OrderedEvents.adequate(10,0);OrderedEvents.writeHead(20,10);OrderedEvents.writeReturn(20,10,5);OrderedEvents.publication(OrderedEvents.scopeToken(),1,1);OrderedEvents.finish(true);
         Path trace=dir.resolve("sample-1.wftord");var capture=OrderedEvents.read(trace);Path log=attempt.resolve("verification.log");Files.writeString(log,"no marker\n");rejects(()->OriginalEventCompare.completion(capture,trace,log,OriginalEventCompare.hash(log)));
-        Files.writeString(log,"GROWTH_SAMPLE orange seed=1 pulses=1\n");OriginalEventCompare.completion(capture,trace,log,OriginalEventCompare.hash(log));rejects(()->OriginalEventCompare.completion(capture,trace,log,"0".repeat(64)));
+        Files.writeString(log,"GROWTH_SAMPLE orange seed=1 pulses=1\n");rejects(()->OriginalEventCompare.completion(capture,trace,log,OriginalEventCompare.hash(log)));
+        String payloadReceipt="ORIGINAL_EVENTS path="+trace.toAbsolutePath().normalize()+" sha256="+OriginalEventCompare.hash(trace)+" records="+capture.count()+" workerRecords="+capture.metadata().getProperty("workerRecordCount")+" incomplete=false scopeOutcome=UNPROVEN\n";
+        Files.writeString(log,payloadReceipt+"GROWTH_SAMPLE orange seed=1 pulses=1\n");OriginalEventCompare.completion(capture,trace,log,OriginalEventCompare.hash(log));rejects(()->OriginalEventCompare.completion(capture,trace,log,"0".repeat(64)));
         byte[] prior=Files.readAllBytes(trace);var failure=new IllegalStateException("original measurement Throwable");
         OrderedEvents.begin(1);OrderedEvents.pulse(1);OrderedEvents.queryBegin(false,10);
         try{try{throw failure;}finally{OrderedEvents.finish(true);}}catch(IllegalStateException caught){check(caught==failure,"original exception identity");}

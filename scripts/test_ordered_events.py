@@ -19,6 +19,18 @@ class OrderedEventsTest(unittest.TestCase):
         (out/'controls.log').write_text(run.stdout+run.stderr)
         self.assertEqual(0, run.returncode, run.stdout+run.stderr)
 
+    def test_completion_receipt_correlation_not_authentication(self):
+        out = ROOT/'build/source-ordered-controls'/str(uuid.uuid4())
+        classes = out/'classes'
+        classes.mkdir(parents=True)
+        sources = [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OrderedEvents.java', *[ROOT/'scripts'/name for name in ('OriginalEventCompare.java', 'OrderedEventsSelfTest.java', 'CompletionReceiptSelfTest.java')]]
+        compile = subprocess.run(['javac', '--release', '17', '-d', str(classes), *map(str, sources)], capture_output=True, text=True)
+        (out/'javac.log').write_text(compile.stdout+compile.stderr)
+        self.assertEqual(0, compile.returncode, compile.stderr)
+        run = subprocess.run(['java', '-cp', str(classes), 'com.bettercontent.betterwildfruittrees.gametest.CompletionReceiptSelfTest', str(out/'evidence')], capture_output=True, text=True)
+        (out/'controls.log').write_text(run.stdout+run.stderr)
+        self.assertEqual(0, run.returncode, run.stdout+run.stderr)
+
     def test_opt_in_native_only_binding_and_head_guards(self):
         build = (ROOT/'build.gradle.kts').read_text()
         self.assertIn('val originalEventTrace = originalEventTraceValue == "true"', build)

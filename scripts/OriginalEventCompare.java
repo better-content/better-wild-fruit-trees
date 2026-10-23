@@ -19,9 +19,22 @@ public final class OriginalEventCompare {
         if(!p.getProperty("sourceCommit","").matches("[a-f0-9]{40}")||!p.getProperty("sourceDirty","").equals("false"))throw new IOException("source binding incomplete");
         if(!hash(attempt.resolve("original-events-classes.sha256")).equals(p.getProperty("classHashSetSha256"))
             ||!hash(attempt.resolve("before-own-prepare.properties")).equals(p.getProperty("nativeInputReceiptSha256")))throw new IOException("compiled/input receipt SHA mismatch");
+        // Caller-supplied hashes bind bytes, not log authenticity. Correlate the exact
+        // actual payload receipt and its later post-assert marker; never trust marker-only logs.
+        String receiptPrefix="ORIGINAL_EVENTS path="+trace.toAbsolutePath().normalize()+" ";
+        String receipt=receiptPrefix+"sha256="+hash(trace)+" records="+capture.count()
+            +" workerRecords="+p.getProperty("workerRecordCount", "missing")+" incomplete=false scopeOutcome=UNPROVEN";
+        Pattern receiptPattern=Pattern.compile("(?:^|.*\\s)"+Pattern.quote(receipt)+"\\s*$");
         String marker="GROWTH_SAMPLE orange seed="+p.getProperty("sample")+" pulses="+p.getProperty("lastPulse");
-        long count=Files.readAllLines(log).stream().filter(line->line.matches(".*"+Pattern.quote(marker)+"\\s*")).count();
-        if(count!=1)throw new IOException("scope outcome unproven: require exactly one post-assert GROWTH_SAMPLE");
+        Pattern markerPattern=Pattern.compile("(?:^|.*\\s)"+Pattern.quote(marker)+"\\s*$");
+        int receipts=0,markers=0,receiptLine=-1,markerLine=-1,index=0;
+        for(String line:Files.readAllLines(log)){
+            if(line.contains(receiptPrefix)){receipts++;if(receiptPattern.matcher(line).matches())receiptLine=index;}
+            if(markerPattern.matcher(line).matches()){markers++;markerLine=index;}
+            index++;
+        }
+        if(receipts!=1||receiptLine<0)throw new IOException("scope payload unbound: require exactly one exact path/actual SHA/count/complete ORIGINAL_EVENTS receipt");
+        if(markers!=1||markerLine<=receiptLine)throw new IOException("scope outcome unproven: require unique matching post-assert GROWTH_SAMPLE strictly after receipt");
     }
     static boolean equal(long[] a,int ai,long[] b,int bi){
         for(int j=0;j<8;j++){if(a[ai]==OrderedEvents.SKY&&(j==4||j==5))continue;if(a[ai+j]!=b[bi+j])return false;}return true;
@@ -52,7 +65,7 @@ public final class OriginalEventCompare {
         try{
             var a=OrderedEvents.read(Path.of(args[0]));var b=OrderedEvents.read(Path.of(args[3]));
             completion(a,Path.of(args[0]),Path.of(args[1]),args[2]);completion(b,Path.of(args[3]),Path.of(args[4]),args[5]);
-            System.out.println("LOG_BINDINGS sha256="+args[2]+","+args[5]+" outcomes=postAssertMarkersNotNativeGateWaiver");
+            System.out.println("LOG_BINDINGS sha256="+args[2]+","+args[5]+" outcomes=receiptThenPostAssertCorrelatedNotAuthenticatedNotNativeGateWaiver");
             System.out.println(compare(a,b));
         }catch(IOException invalid){System.out.println("INCONCLUSIVE_INVALID_OR_INCOMPLETE "+invalid.getMessage());System.exit(2);}
     }

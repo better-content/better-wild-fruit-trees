@@ -206,10 +206,16 @@ cross-run prefix comparison excludes SKY's opaque identity/version fields, not a
 
 **Balanced STOP does not prove measurement completion.** The unchanged finish call lives in
 finally and has no access to an escaping Throwable. Thus every scope's outcome is UNPROVEN
-until offline validation finds exactly one matching unchanged post-assert
-`GROWTH_SAMPLE orange seed=N pulses=P` in a supplied retained native log whose expected
-SHA-256 is explicitly provided. A missing marker/incorrect pulse or log hash is inconclusive,
-including exceptions after otherwise balanced hooks. This completion evidence does not waive
+until offline validation correlates **exactly one** `ORIGINAL_EVENTS` receipt for the exact
+actual nonce-owned trace path, actual whole-file SHA-256, record counts, complete status and
+UNPROVEN outcome, with exactly one matching unchanged post-assert
+`GROWTH_SAMPLE orange seed=N pulses=P` **strictly later** in the supplied retained native log.
+Its expected SHA-256 must also be explicitly provided. Marker-only logs, wrong path/payload
+hash/counts, duplicate receipts/markers or reversed ordering are inconclusive, including
+exceptions after otherwise balanced hooks. These checks establish consistency/correlation,
+**not authenticity**: a caller can fabricate a mutually consistent log and its hash. Trusted
+retention/provenance must be established separately; caller-supplied SHA alone never authenticates
+a log. This completion evidence does not waive
 persimmon/bayberry/other native failures or imply overall exact-26 acceptance.
 
 The direct JDK comparator is `scripts/OriginalEventCompare.java`. Compile it alongside
@@ -223,7 +229,8 @@ java -cp <classes> com.bettercontent.betterwildfruittrees.gametest.OriginalEvent
 ```
 
 It checks payload SHA/length/structure, paired nesting/order, dictionary/class/source/profile
-bindings, actual nonce-directory receipts, and post-assert outcomes before comparing complete
+bindings, actual nonce-directory receipts, exact payload receipts and strictly later post-assert
+outcomes before comparing complete
 semantic prefixes. Kind/position/request-first changes, an in-flight write, missing evidence,
 overflow, or a light value change without matching adequacy/next-request change are
 inconclusive. Same-position query-result divergence before any differing write HEAD, then a
@@ -234,6 +241,9 @@ Observation allocation, atomic traffic and post-scope flushing **can perturb sch
 Even complete ordered evidence does not prove stability or the historical cause of drift.
 Every ordered class/resource/binding/payload is excluded from runtime archives, with negative
 artifact controls; no activation, deployment, acceptance relaxation or cleanup is authorized.
+
+Cause-first readiness design (proposal only; no barrier implementation):
+[Light readiness and queue-ordering proposal](light-readiness-proposal.md).
 
 ## Controls and remaining acceptance
 

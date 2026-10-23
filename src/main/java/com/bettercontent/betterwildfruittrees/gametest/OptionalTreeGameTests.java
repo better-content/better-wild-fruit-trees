@@ -56,7 +56,9 @@ public final class OptionalTreeGameTests {
         player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(level.getServer(),
             new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), player);
         try {
-            for (String id : present(h)) {
+            var selected = present(h);
+            NativeGrowthKitChecks.verify(h, !selected.isEmpty());
+            for (String id : selected) {
                 root(h, id, root); var tree = species(id); var trunk = root.above();
                 h.assertTrue(tree.getSignalEnergy() == WildFruitPolicy.policy(id).energy(), "Native energy policy missing " + id);
                 h.assertTrue(LoadedTreeLookup.isProtected(level, trunk), "Exact root protection missing " + id);
@@ -267,10 +269,10 @@ public final class OptionalTreeGameTests {
                     id.equals(WildFruitPolicy.SAGUARO) ? "cactus_fruit" : "palm_fruit")).findFirst().orElseThrow();
                 var record = RootLedger.get(level).record(level, pos);
                 level.random.setSeed(67891);
-                for (int i = 0; i < 128; i++) feature.generate(GenFeature.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
+                for (int i = 0; i < 128; i++) feature.generate(GenFeature.Type.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
                 h.assertTrue(record.credit == 0, "Empty optional allowance changed");
                 record.credit = ProductionRates.MAX_CREDIT;
-                for (int i = 0; i < 128; i++) feature.generate(GenFeature.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
+                for (int i = 0; i < 128; i++) feature.generate(GenFeature.Type.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
                 h.assertTrue(record.credit < ProductionRates.MAX_CREDIT && record.credit >= 0, "Real native override bypassed success accounting " + id);
                 h.assertTrue((ProductionRates.MAX_CREDIT - record.credit) % ProductionRates.FRUIT_INTERVAL == 0, "Fractional replacement debit");
                 clear(h, pos);

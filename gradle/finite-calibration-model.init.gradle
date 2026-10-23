@@ -1,0 +1,139 @@
+// SOURCE model adapter only. Executed ONLY inside a separately admitted invocation, never a preflight reconstruction.
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
+import java.security.MessageDigest
+
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    def properties = gradle.startParameter.projectProperties
+    def registrationFile = properties['finiteCalibrationAdmission']
+    if (!registrationFile) throw new GradleException('Missing preregistered finite calibration admission receipt')
+    def registered = new JsonSlurper().parse(new File(registrationFile))
+    def profile = properties['optionalGrowthCalibrationForms']
+    if (!properties.containsKey('optionalGrowthCalibration') || !(profile in ['all', 'ancient', 'saguaro,saguaro_mega']))
+        throw new GradleException('This adapter admits only original all32/Ancient8/Saguaro8+Mega8 diagnostic profiles, not main26')
+    if (registered.schema != 'bc.finite_calibration_registration.v1' || registered.profile != profile ||
+            registered.attempt != properties['nativeGameTestAttemptId'] || registered.beforeGradleAttemptAbsent != true ||
+            registered.requiredCaseCount != 1 || registered.expectedSamples != (profile == 'all' ? 32 : profile == 'ancient' ? 8 : 16))
+        throw new GradleException('Finite preregistration/profile/UUID/count mismatch')
+    if (gradle.startParameter.taskNames != ['runGameTestServer'])
+        throw new GradleException('Finite admission is exactly runGameTestServer; no full26/stage/assemble/other tasks')
+    def run = p.minecraft.runs.getByName('gameTestServer')
+    def directory = p.file(run.workingDirectory).canonicalFile
+    def expected = p.file('run-gametest/attempts/'+registered.attempt).canonicalFile
+    if (directory != expected || directory.absolutePath != registered.expectedActualRunConfigDirectory)
+        throw new GradleException('Actual same-invocation Forge RunConfig directory differs')
+    ['world','server.properties','logs/latest.log','logs/debug.log'].each { name ->
+        if (new File(directory,name).exists()) throw new GradleException('Native input/log exists before first own preparation: '+name)
+    }
+    def effectiveArgs = run.args.collect { it.toString() }
+    def pinnedSdkArgs = ['--launchTarget','forgegametestserveruserdev','--gameDir','.',
+        '--fml.forgeVersion','47.4.13','--fml.mcVersion','1.20.1','--fml.forgeGroup',
+        'net.minecraftforge','--fml.mcpVersion','20230612.114412']
+    if (run.properties['forge.enabledGameTestNamespaces']?.toString() != 'better_wild_fruit_calibration' ||
+            run.properties['better_wild_fruit_trees.calibration.forms']?.toString() != profile ||
+            run.main?.toString() != 'cpw.mods.bootstraplauncher.BootstrapLauncher' ||
+            effectiveArgs != pinnedSdkArgs + ['--nogui','--mixin.config','better_wild_fruit_trees.mixins.json']) {
+        def failure = [phase:'ACTUAL_SAME_INVOCATION_PROJECTS_EVALUATED_MODEL_MISMATCH',
+            actualRunConfigDirectory:directory.absolutePath, actualRunProperties:run.properties,
+            actualArgs:effectiveArgs, actualMain:run.main, expectedPinnedSdkArgs:pinnedSdkArgs, expectedAuthoredArgs:['--nogui'],
+            expectedExistingMixinArgs:['--mixin.config','better_wild_fruit_trees.mixins.json'],
+            acceptance:'NONE; failed observer/model assertion, not Native execution or reconstructed proof']
+        Files.write(new File(registered.receiptDirectory.toString(),'ACTUAL_MODEL_MISMATCH.json').toPath(),
+            (JsonOutput.prettyPrint(JsonOutput.toJson(failure))+'\n').getBytes('UTF-8'),StandardOpenOption.CREATE_NEW)
+        throw new GradleException('Actual native namespace/profile/effective SDK+authored args mismatch; actual values retained')
+    }
+    ['tconstruct','ars_nouveau','wild_addons'].each { key ->
+        if (run.properties['better_wild_fruit_trees.fixture.'+key] != 'true')
+            throw new GradleException('Finite present-addon fixture graph disabled: '+key)
+    }
+    if (System.getenv('BC_CUSTOM_MOD_JAR_DIR')) throw new GradleException('Custom provider override forbidden')
+    def hash = { File f -> MessageDigest.getInstance('SHA-256').digest(f.bytes).encodeHex().toString() }
+    if (hash(p.file('src/gametest/fixture/server.properties')) != registered.authoredSettingsSha256)
+        throw new GradleException('Authored settings changed before own preparation')
+    def providerReceipt = new File(registered.receiptDirectory.toString(), 'PROVIDER_INPUTS.json')
+    if (hash(providerReceipt) != registered.providerInputReceiptSha256) throw new GradleException('Provider receipt changed')
+    def providers = new JsonSlurper().parse(providerReceipt)
+    providers.inputs.each { input ->
+        if (hash(new File(input.pin)) != input.pinSha256 || hash(new File(input.raw)) != input.rawSha256)
+            throw new GradleException('Actual Root/provider input changed before own preparation')
+    }
+    registered.sourceSha256.each { name, value ->
+        if (hash(p.file(name)) != value) throw new GradleException('Preregistered source changed: '+name)
+    }
+    def receipt = [schema:'bc.actual_finite_calibration_model.v1',
+        phase:'ACTUAL_SAME_INVOCATION_PROJECTS_EVALUATED_BEFORE_ANY_TASK_OWN_PREPARE_OR_ENGINE',
+        actualRunConfigDirectory:directory.absolutePath, attempt:registered.attempt, profile:profile,
+        namespace:run.properties['forge.enabledGameTestNamespaces'], actualRunProperties:run.properties,
+        actualArgs:run.args, actualRequestedTasks:gradle.startParameter.taskNames,
+        worldAbsent:true, propertiesAbsent:true, latestAbsent:true, debugAbsent:true,
+        authoredSettingsSha256:hash(p.file('src/gametest/fixture/server.properties')),
+        sourceSha256:registered.sourceSha256, fixtureProperties:[tconstruct:'true',ars_nouveau:'true',wild_addons:'true'],
+        providerInputReceiptSha256:registered.providerInputReceiptSha256,
+        runtimeClasspath:'NOT_RESOLVED_OR_CLAIMED_AT_PROJECTS_EVALUATED',
+        acceptance:'NONE: model receipt only; no test/alias/form/reference/equivalence verdict']
+    def output = new File(registered.receiptDirectory.toString(), 'ACTUAL_PROJECTS_EVALUATED_BEFORE_OWN_PREPARE.json').toPath()
+    Files.write(output, (JsonOutput.prettyPrint(JsonOutput.toJson(receipt))+'\n').getBytes('UTF-8'), StandardOpenOption.CREATE_NEW)
+    p.tasks.matching { it.name == 'runGameTestServer' }.configureEach { nativeTask ->
+        int argumentProviderEvaluations = 0
+        String capturedInputJson = null
+        def observeConfiguredExecution = {
+            if (++argumentProviderEvaluations > 8)
+                throw new GradleException('Bounded execution observer evaluated excessively')
+            def engineArgs = nativeTask.args.collect { it.toString() }
+            if (engineArgs != pinnedSdkArgs + ['--nogui','--mixin.config','better_wild_fruit_trees.mixins.json'] ||
+                    nativeTask.mainClass.orNull != 'cpw.mods.bootstraplauncher.BootstrapLauncher' ||
+                    nativeTask.workingDir.canonicalFile != directory) {
+                def failure = [phase:'ACTUAL_SAME_INVOCATION_BEFORE_ENGINE_MODEL_MISMATCH', actualArgs:engineArgs,
+                    actualMain:nativeTask.mainClass.orNull, actualWorkingDirectory:nativeTask.workingDir.absolutePath,
+                    expectedPinnedSdkArgs:pinnedSdkArgs, expectedAuthoredArgs:['--nogui'],
+                    expectedExistingMixinArgs:['--mixin.config','better_wild_fruit_trees.mixins.json'], acceptance:'NONE']
+                Files.write(new File(registered.receiptDirectory.toString(),'ACTUAL_ENGINE_MODEL_MISMATCH.json').toPath(),
+                    (JsonOutput.prettyPrint(JsonOutput.toJson(failure))+'\n').getBytes('UTF-8'),StandardOpenOption.CREATE_NEW)
+                throw new GradleException('Actual engine SDK+authored args/main/working-directory mismatch; actual values retained')
+            }
+            def settings = new File(directory,'server.properties')
+            def parsed = new Properties()
+            settings.withInputStream { parsed.load(it) }
+            def expectedSettings = new Properties()
+            p.file('src/gametest/fixture/server.properties').withInputStream { expectedSettings.load(it) }
+            expectedSettings.setProperty('level-seed','8675309')
+            if (parsed != expectedSettings || new File(directory,'world').exists() ||
+                    new File(directory,'logs/latest.log').exists() || new File(directory,'logs/debug.log').exists())
+                throw new GradleException('Actual final settings/world/log inputs differ before engine')
+            def actual = [schema:'bc.actual_finite_before_engine.v2', phase:'ACTUAL_SAME_INVOCATION_AFTER_OWN_PREPARE_BEFORE_ENGINE',
+                executionBoundary:'PUBLIC_EMPTY_ARGUMENT_PROVIDER_AFTER_FORGE_EXEC_CONFIGURATION_BEFORE_PROCESS_START',
+                attempt:registered.attempt, profile:profile, actualRunConfigDirectory:directory.absolutePath,
+                actualJavaExecMain:nativeTask.mainClass.orNull, actualJavaExecArgs:nativeTask.args,
+                settings:parsed, settingsSha256:hash(settings), worldAbsent:true, latestAbsent:true, debugAbsent:true,
+                actualResolvedClasspath:nativeTask.classpath.files.collect { file ->
+                    [path:file.absolutePath, exists:file.exists(), sha256:file.isFile() ? hash(file) : null,
+                     directoryMeaning:file.isDirectory() ? 'Actual compiled output directory; source hashes captured independently' : null]
+                }, acceptance:'NONE: actual inputs/SDK model only, not Native/alias/form/gameplay acceptance']
+            def inputJson = JsonOutput.toJson(actual)
+            if (capturedInputJson != null && capturedInputJson != inputJson)
+                throw new GradleException('Actual execution inputs drifted across command assembly evaluations')
+            if (capturedInputJson == null) {
+                Files.write(new File(registered.receiptDirectory.toString(),'ACTUAL_BEFORE_ENGINE.json').toPath(),
+                    (JsonOutput.prettyPrint(inputJson)+'\n').getBytes('UTF-8'),StandardOpenOption.CREATE_NEW)
+                capturedInputJson = inputJson
+            }
+        }
+        // Public Gradle callback: MinecraftRunTask.exec has populated the actual spec before
+        // JavaExec builds its command. Do not query commandLine here (recursive provider evaluation).
+        // Early/missing/drifting fields fail closed; repeated identical assembly is idempotent.
+        nativeTask.argumentProviders.add(new org.gradle.process.CommandLineArgumentProvider() {
+            @Override Iterable<String> asArguments() {
+                observeConfiguredExecution.call()
+                return java.util.Collections.emptyList()
+            }
+        })
+        nativeTask.doLast {
+            if (capturedInputJson == null || argumentProviderEvaluations == 0 ||
+                    !new File(registered.receiptDirectory.toString(),'ACTUAL_BEFORE_ENGINE.json').isFile())
+                throw new GradleException('Required pre-engine execution receipt absent')
+        }
+    }
+}

@@ -110,7 +110,13 @@ def classify_log(text):
     for number, line in enumerate(lines, 1):
         match = RECORD.fullmatch(line)
         severity = match[3] if match else next((s for s in ('FATAL', 'ERROR', 'WARN') if re.search(r'\b' + s + r'\b', line)), None)
-        failure = number not in probes and bool(FAILED_OPERATION.search(match[5] if match else line))
+        state_failure = bool(match and (
+            (match[4].rstrip('/') in ('net.minecraft.world.level.chunk.LevelChunk', 'minecraft/LevelChunk')
+             and (re.search(r'^Tried to load a block entity for block .+ but failed at location ', match[5])
+                  or re.search(r'^Tried to load a DUMMY block entity @ .+ but found not block entity block ', match[5])))
+            or (match[4].rstrip('/') == 'com.ferreusveritas.dynamictrees.tree.species.Species'
+                and match[5].startswith('Rooty Dirt block NOT FOUND for soil '))))
+        failure = number not in probes and (state_failure or bool(FAILED_OPERATION.search(match[5] if match else line)))
         if severity not in ('WARN', 'ERROR', 'FATAL') and not failure and number not in probes:
             continue
         diagnostics.append({'line': number, 'record': line, 'severity': severity,

@@ -23,6 +23,7 @@ public final class WildFruitTrees {
         DeferredRegister.create(ForgeRegistries.Keys.GLOBAL_LOOT_MODIFIER_SERIALIZERS, MOD_ID);
     static { MODIFIERS.register("no_propagules", () -> PropagationLootModifier.CODEC); }
     public WildFruitTrees() {
+        com.bettercontent.betterwildfruittrees.diagnostics.RuntimeDiagnostics.initialize();
         com.bettercontent.betterwildfruittrees.compat.LedgerNetwork.initialize();
         MODIFIERS.register(FMLJavaModLoadingContext.get().getModEventBus());
         WildBushField.FEATURES.register(FMLJavaModLoadingContext.get().getModEventBus());

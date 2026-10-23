@@ -1,12 +1,32 @@
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
+import java.security.MessageDigest
+import java.util.Properties
+import java.util.UUID
+
 plugins {
     java
     id("net.minecraftforge.gradle") version "6.0.54"
     id("org.spongepowered.mixin") version "0.7.38"
 }
+val calibrationEnabled = project.hasProperty("optionalGrowthCalibration")
+val calibrationForms = providers.gradleProperty("optionalGrowthCalibrationForms").orNull ?: "all"
+require(calibrationForms in setOf("all", "ancient", "saguaro,saguaro_mega")) { "Unknown/empty/duplicate calibration profile" }
+require(!project.hasProperty("optionalGrowthCalibrationForms") || calibrationEnabled) { "Form selection requires the diagnostic profile" }
+require(!calibrationEnabled || !project.hasProperty("withoutWildAddonsFixture")) { "Calibration requires the unchanged present-addon SDK" }
 group = "com.bettercontent"
 version = property("mod_version") as String
 base { archivesName.set("better-wild-fruit-trees") }
 java { toolchain.languageVersion.set(JavaLanguageVersion.of(17)) }
+val nativeAttempts = project.file("run-gametest/attempts").toPath()
+require(!Files.isSymbolicLink(nativeAttempts) && !Files.isSymbolicLink(nativeAttempts.parent)) { "Native attempt ancestry must not be a symlink" }
+Files.createDirectories(nativeAttempts)
+val requestedAttempt = providers.gradleProperty("nativeGameTestAttemptId").orNull
+val nativeAttemptId = requestedAttempt?.let {
+    UUID.fromString(it).toString().also { canonical -> require(canonical == it) { "Noncanonical native attempt UUID" } }
+} ?: UUID.randomUUID().toString()
+val nativeAttempt = Files.createDirectory(nativeAttempts.resolve(nativeAttemptId)).toFile()
+logger.lifecycle("Native GameTest fresh UUID admitted: $nativeAttemptId; existing world=false")
 minecraft {
     mappings("official", "1.20.1")
     copyIdeResources = true
@@ -21,9 +41,10 @@ minecraft {
         create("client")
         create("server") { arg("--nogui") }
         create("gameTestServer") {
-            workingDirectory(project.file("run-gametest"))
-            property("forge.enabledGameTestNamespaces", if (project.hasProperty("optionalGrowthCalibration"))
+            workingDirectory(nativeAttempt)
+            property("forge.enabledGameTestNamespaces", if (calibrationEnabled)
                 "better_wild_fruit_calibration" else "better_wild_fruit_trees")
+            if (calibrationEnabled) property("better_wild_fruit_trees.calibration.forms", calibrationForms)
             property("better_wild_fruit_trees.fixture.tconstruct", (!project.hasProperty("withoutTConFixture")).toString())
             property("better_wild_fruit_trees.fixture.ars_nouveau", (!project.hasProperty("withoutArsFixture")).toString())
             property("better_wild_fruit_trees.fixture.wild_addons", (!project.hasProperty("withoutWildAddonsFixture")).toString())
@@ -92,6 +113,19 @@ val prepareMixinResources by tasks.registering(Copy::class) {
 }
 sourceSets.main { resources.srcDir(prepareMixinResources) }
 tasks.test { useJUnitPlatform() }
+// Diagnostic only: the default remains all32; admitted subsets require their own exact form records.
+// Actual namespaces, canonical ordinals, independent means and BOTH nonempty logs are fail-closed.
+if (calibrationEnabled) {
+    tasks.matching { it.name == "runGameTestServer" }.configureEach {
+        doLast {
+            exec {
+                commandLine("python3", "-B", "scripts/check_calibration_log.py", "--profile", calibrationForms,
+                    "--latest", nativeAttempt.resolve("logs/latest.log").absolutePath,
+                    "--debug", nativeAttempt.resolve("logs/debug.log").absolutePath)
+            }
+        }
+    }
+}
 tasks.named<Jar>("jar") {
     exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**")
     filesMatching("better_wild_fruit_trees.refmap.json") { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
@@ -119,26 +153,21 @@ val stageRuntimeJar by tasks.registering(Copy::class) {
 tasks.named("assemble") { dependsOn(stageRuntimeJar) }
 val syncGameTestStructures by tasks.registering(Copy::class) {
     from("src/main/resources/gameteststructures")
-    into("run-gametest/gameteststructures")
+    into(nativeAttempt.resolve("gameteststructures"))
 }
 val prepareGameTestFiles by tasks.registering(Copy::class) {
     from("src/gametest/fixture")
-    into("run-gametest")
+    into(nativeAttempt)
 }
 val resetGameTestWorld by tasks.registering {
     doLast {
-        val world = file("run-gametest/world")
-        if (world.exists()) {
-            val retained = file("run-gametest/retained-worlds/${System.currentTimeMillis()}")
-            retained.parentFile.mkdirs()
-            check(world.renameTo(retained)) { "Could not retain previous GameTest world" }
-        }
+        check(!nativeAttempt.resolve("world").exists()) { "Refusing existing native world; retain the entire prior attempt" }
     }
 }
 val configureGameTestWorldSeed by tasks.registering {
     dependsOn(prepareGameTestFiles)
     doLast {
-        val properties = file("run-gametest/server.properties")
+        val properties = nativeAttempt.resolve("server.properties")
         val seedLine = "level-seed=8675309"
         val lines = if (properties.isFile) properties.readLines() else emptyList()
         val updated = lines.map { if (it.startsWith("level-seed=")) seedLine else it }.toMutableList()
@@ -150,16 +179,64 @@ val configureGameTestWorldSeed by tasks.registering {
 tasks.matching { it.name.startsWith("prepareRunGameTestServer") }.configureEach {
     dependsOn(syncGameTestStructures, prepareGameTestFiles, resetGameTestWorld, configureGameTestWorldSeed)
 }
+listOf(syncGameTestStructures, prepareGameTestFiles, resetGameTestWorld, configureGameTestWorldSeed).forEach {
+    it.configure { dependsOn("verifyCalibrationRunConfigGuard") }
+}
 val verifyScripts by tasks.registering(Exec::class) {
     commandLine("python3", "-B", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py")
 }
 val verifyNativeLog by tasks.registering(Exec::class) {
     dependsOn("runGameTestServer")
-    commandLine("python3", "-B", "scripts/verify_artifact.py", "log", "run-gametest/logs/latest.log")
+    commandLine("python3", "-B", "scripts/verify_artifact.py", "log", nativeAttempt.resolve("logs/latest.log").absolutePath)
 }
 val verifyRuntimeJar by tasks.registering(Exec::class) {
     dependsOn(stageRuntimeJar)
     commandLine("python3", "-B", "scripts/verify_artifact.py", "jar", "build/libs/${base.archivesName.get()}-$version.jar")
 }
-tasks.register("verifyFast") { dependsOn("check", verifyScripts) }
+val verifyCalibrationRunConfigGuard by tasks.registering {
+    doLast {
+        minecraft.runs.forEach { run ->
+            val native = run.name == "gameTestServer"
+            val expectedNamespace = if (calibrationEnabled) "better_wild_fruit_calibration" else "better_wild_fruit_trees"
+            check((run.properties["better_wild_fruit_trees.calibration.forms"] != null) == (native && calibrationEnabled)) { "Calibration property escaped native diagnostic RunConfig" }
+            if (native) {
+                check(file(run.workingDirectory).canonicalFile == nativeAttempt.canonicalFile) { "Native RunConfig directory drift" }
+                check(run.properties["forge.enabledGameTestNamespaces"] == expectedNamespace) { "Native namespace drift" }
+                if (calibrationEnabled) check(run.properties["better_wild_fruit_trees.calibration.forms"] == calibrationForms) { "Native profile drift" }
+                val effectiveArgs = run.args.map { it.toString() }
+                val pinnedSdkArgs = listOf("--launchTarget", "forgegametestserveruserdev", "--gameDir", ".",
+                    "--fml.forgeVersion", "47.4.13", "--fml.mcVersion", "1.20.1", "--fml.forgeGroup",
+                    "net.minecraftforge", "--fml.mcpVersion", "20230612.114412")
+                check(effectiveArgs == pinnedSdkArgs + listOf("--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")) {
+                    "Native effective SDK/authored args override: $effectiveArgs"
+                }
+                check(!nativeAttempt.resolve("world").exists() && !nativeAttempt.resolve("server.properties").exists()) { "Native input existed before own prepare" }
+                check(System.getenv("BC_CUSTOM_MOD_JAR_DIR").isNullOrBlank()) { "Unexpected custom provider override" }
+                val receipt = Properties()
+                receipt.setProperty("phase", "BEFORE_OWN_PREPARE_OR_ENGINE")
+                receipt.setProperty("attempt", nativeAttemptId)
+                receipt.setProperty("actualRunConfigDirectory", file(run.workingDirectory).canonicalPath)
+                receipt.setProperty("actualNamespace", run.properties["forge.enabledGameTestNamespaces"].toString())
+                receipt.setProperty("actualArgs", run.args.joinToString(" "))
+                receipt.setProperty("profile", if (calibrationEnabled) calibrationForms else "main26")
+                receipt.setProperty("worldAbsent", "true")
+                receipt.setProperty("propertiesAbsent", "true")
+                receipt.setProperty("authoredSeed", "8675309")
+                receipt.setProperty("customProviderOverrideAbsent", "true")
+                listOf("tconstruct", "ars_nouveau", "wild_addons").forEach { name ->
+                    receipt.setProperty("actualFixture.$name", run.properties["better_wild_fruit_trees.fixture.$name"].toString())
+                }
+                listOf("src/gametest/fixture/server.properties", "build.gradle.kts",
+                    "src/main/java/com/bettercontent/betterwildfruittrees/gametest/CalibrationPlan.java",
+                    "src/main/java/com/bettercontent/betterwildfruittrees/gametest/OptionalGrowthCalibration.java").forEach { path ->
+                    val hash = MessageDigest.getInstance("SHA-256").digest(file(path).readBytes())
+                    receipt.setProperty("sourceSha256.$path", hash.joinToString("") { "%02x".format(it.toInt() and 255) })
+                }
+                val receiptPath = nativeAttempt.resolve("before-own-prepare.properties").toPath()
+                Files.newBufferedWriter(receiptPath, StandardOpenOption.CREATE_NEW).use { receipt.store(it, "Actual native RunConfig; not a Native acceptance verdict") }
+            } else check(file(run.workingDirectory).canonicalFile == file("run").canonicalFile) { "Ordinary RunConfig changed" }
+        }
+    }
+}
+tasks.register("verifyFast") { dependsOn("check", verifyScripts, verifyCalibrationRunConfigGuard) }
 tasks.register("verifyFull") { dependsOn("verifyFast", verifyNativeLog, verifyRuntimeJar) }

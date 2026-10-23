@@ -16,8 +16,9 @@ that development-policy link does not introduce a runtime modpack dependency.
 
 The working source extends the complete fixed-location resource policy to exactly
 `dynamictreesplus:saguaro_cactus`, `dtnatures_spirit:coconut` and `dtquark:ancient`.
-**This extension is uncompiled, untested and undeployed. No matching runtime JAR has been
-built or installed.** The established thirteen-species behavior described below remains
+**The extension remains source-only, not ready for activation: four measured V9 references are
+separately Source-admitted, but full native verification and deployment remain pending.
+No matching validated runtime JAR has been installed.** The established thirteen-species behavior described below remains
 the compatibility contract, not evidence that these additions have passed it.
 
 | Resource | Native ripe product | Full-size energy | Native adapter |
@@ -55,12 +56,19 @@ Root removal/lazy loaded validation clears stale records; chunk suspension preve
 catch-up. Unknown ledger schemas retain their bytes and reject use rather than becoming empty
 ledgers. The old thirteen species retain their species-root block-entity storage.
 
-**Release blockers:** four independent native growth references are missing: `saguaro`,
-`coconut`, `ancient`, and `saguaro_mega`. Required-reference access throws; unit contracts and
-`verifyGrowthReferences`/`stageRuntimeJar` deliberately fail while entries are absent. Native
-rates alone are not completed calibration. Saguaro/mega use fixed discrete thickness, so the
-ordinary full-trunk-radius endpoint is invalid: their structural adult-reference definition,
-measurement and endpoint acceptance still need review. No arbitrary pulse count, last observed
+**Measured-reference Source admission:** retained V9 diagnostic receipt
+`5c099226-736b-4bf2-8bcd-3c70f889673d` supplies eight native samples per form (32 total).
+After complete retained review and separate explicit lead admission, `TreeGrowthRates` records
+`saguaro` (native rate `1F`, mean 26.75 pulses), `coconut` (`.8F`, 14.0), `ancient` (`.5F`,
+89.125), and `saguaro_mega` (`.6F`, 67.25). This removes the missing-four Source-data blocker,
+not the remaining release blockers. Required-reference guards and verification/staging contracts
+remain intact; no tests or staging were run for this edit. Native rates alone are not calibration.
+Saguaro/mega use fixed discrete thickness, so the ordinary full-trunk-radius endpoint is invalid. The predeclared versioned
+[adult-architecture predicate](docs/cactus-architecture.md) uses native-origin connected
+four-cardinal upturned arms, plus proven conversion and the native upper tier for mega.
+The V9 cactus endpoint is `native_upturned_four_arm_v1`; coconut uses
+`native_coconut_fruiting_crown_v1`, and ancient uses native maximum trunk radius. These measured
+endpoints do not establish full-gate or production acceptance. No arbitrary pulse count, last observed
 change or bounded-probe limit is accepted as maturity.
 
 Seven additional main-namespace GameTests are authored (26 total including the two lemon tests),
@@ -73,11 +81,44 @@ and representative native generation remain runtime acceptance work, not inferre
 
 The separate `better_wild_fruit_calibration` diagnostic namespace requires all pinned addons.
 `-PoptionalGrowthCalibration runGameTestServer` authors eight seeded bounded probes per form;
-woody probes report full-trunk pulses, while cactus probes report geometry only. Its single
-successful diagnostic is **not** the 26-test production gate and never fills source references.
+Ancient reports full-trunk pulses; Coconut reports only the reviewed
+[native reproductive-eligible leaf-crowned structure](docs/coconut-architecture.md), not full-cap
+wood/full canopy/actual fruit. Cactus probes report first attainment of the
+predeclared adult-architecture predicate. A bounded-probe failure never supplies a reference. Its single
+successful V9 diagnostic is **not** the 26-test production gate and does not automatically fill
+source references; the four entries above have separate explicit measured-reference Source admission.
+Main fixture-present 26, fixture-absent 26, full gate, shipping exclusions/clean45, staging and pack
+Debug acceptance remain pending; none is supplied by this Source edit.
 Future execution requires separate explicit authorization, registered retained fixture/evidence
 paths and the whole-lifetime workspace POSIX Forge cache lock. Do not run `clean`, staging,
 pack deployment, Packwiz refresh or packaging from this source-work handoff.
+
+## Bounded playtest observations
+
+`bc.playtest.better_wild_fruit_trees.*` observes **one existing outer production callback**
+with primitive reserved/placed/refunded/unsettled totals and credit before/after. Native
+product-observed debit versus absent-product refund is counted at the existing placement site,
+never emitted per fruit cell. Callback normal return and aborted exception are distinct; native
+exceptions propagate unchanged. Unloaded-root, insufficient-credit and optional-ledger deferrals
+are coalesced primitive totals emitted after600 native END-server-ticks or at server stop, not
+per random tick. There is no world reference, per-root/position diagnostic cache or new ledger.
+It adds no growth pulse, placement, RNG draw, chunk load or persistent diagnostic state.
+Credit spend is not a claim of ripe harvest or disk persistence. After the enabled guard,
+the outer batch snapshots immutable dimension, game tick and existing native budget-root
+coordinates. That root is the causal account anchor, not a player's location or identity;
+no per-fruit-cell position, new tree ID/schema, root cache or native-state probe is added.
+Success and aborted callbacks preserve the same original root context, including distinct
+worlds at identical coordinates. Global deferral windows intentionally span roots/worlds and
+carry no single-root context. Credit/storage-family fields avoid seeds, root-ledger NBT and
+player identities. Startup reports actual version and bounded exact
+own-artifact source metadata, or UNKNOWN when unavailable. All categories share120 detail/min,
+burst20, max256 aggregation keys and max2048-character single-line records. Native server END
+tick coalesces monotonic30-second summaries; server stop clears keys without refilling the
+allowance or rearming TRACE. Ordinary standalone stays INFO; DEBUG requires an enabled logger
+profile. This boundary emits causal DEBUG rather than per-growth-tick detail. Common focused
+TRACE support requires a dimension plus exactly one UUID/position and expires once/process at
+60seconds/1000records, still subject to the shared rate limit. Source log contracts and the
+pure helper tests do not supply growth references or replace native/pack acceptance.
 
 ## Requirements
 
@@ -127,11 +168,12 @@ remains blocked; the fresh-tree model is a calibration reference, not new portab
 - **No age ledger, maturity timer, changing energy/tapering, size unlock or day-thirty event.**
   Full-size energy and growth-only tapering apply from the first pulse. Native JoCode/InflatorNode
   tapering remains unchanged. Existing and fresh trees use the same rate; old age records are ignored.
-- `TreeGrowthRates` records eight seeded native fresh-growth samples per species. The GameTest
-  world seed is pinned to `8675309`; pulse counts remain a sampled calibration, not a deterministic
-  per-tree guarantee. The reference is the first attainment of the species' native **maximum trunk
-  radius**, not guaranteed final canopy volume/height. Branches can continue filling out naturally
-  afterward. These controlled
+- The legacy thirteen `TreeGrowthRates` references use eight seeded native fresh-growth samples
+  per species and GameTest world seed `8675309`, with first attainment of native **maximum trunk
+  radius**. The four separately Source-admitted V9 references use their retained eight-sample native
+  seed schedule and versioned cactus/coconut endpoints described above (ancient: maximum trunk radius).
+  Pulse counts remain sampled calibration, not a deterministic per-tree guarantee or guaranteed final
+  canopy volume/height. Branches can continue filling out naturally afterward. These controlled
   favorable-condition samples do not establish a universal physical maximum or full-pack growth time.
 - For measured mean pulse count `P`, the baseline growth rate is
   `P × 4096 / (1,500,000 × 3 × 0.5)`. Vanilla selects 3 of 4096 section positions per tick;

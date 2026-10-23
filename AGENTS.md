@@ -31,10 +31,21 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
   without inferring historical mega origins. Saguaro rarity rejection is native pillar:pipe 6:1;
   other rejected protected selections are unhandled. Keep ordinary selector RNG unchanged.
   Cocoa, archwood pods, Aether trees, ordinary cacti/mega cacti and the old thirteen stay native to
-  their existing contracts. Four missing native references (`saguaro`, `coconut`, `ancient`,
-  `saguaro_mega`) deliberately block reference use, unit/release gates and staging. Cactus maturity
-  cannot use ordinary full trunk radius: resolve its structural endpoint before measuring it or
-  authoring acceptance. Never substitute native rates or invented pulses. No builds/tests/native
+  their existing contracts. Four measured references now have separate explicit lead Source admission
+  after complete retained V9 review: `saguaro` (native rate `1F`, mean 26.75 pulses), `coconut`
+  (`.8F`, 14.0), `ancient` (`.5F`, 89.125), `saguaro_mega` (`.6F`, 67.25), from diagnostic receipt
+  `5c099226-736b-4bf2-8bcd-3c70f889673d` (eight per form, 32 total). Keep required-reference guards,
+  unit/release contracts and staging checks unchanged. This Source-data admission is not activation,
+  present26/absent26, full-gate, shipping/clean45, staging or pack Debug acceptance; those remain pending.
+  Legacy thirteen references use native maximum trunk radius; cactus maturity cannot use that endpoint. The predeclared versioned endpoint is documented in
+  [native cactus architecture](docs/cactus-architecture.md); preserve its native-origin topology
+  and provenance requirements. Coconut uses only the explicitly reviewed
+  [native fruiting-crown structure](docs/coconut-architecture.md), not full-cap wood/full canopy/
+  actual fruit; preserve live typed authority, derived single-path envelope and hydrated native crown.
+  V9 measures `native_upturned_four_arm_v1` for cactus, `native_coconut_fruiting_crown_v1` for coconut
+  and native maximum trunk radius for ancient; separate admission permits only these four Source entries.
+  Measurements never automatically admit references; never use a plateau/cap or substitute native rates
+  or invented pulses. No builds/tests/native
   diagnostics, deployment, refresh, packaging or cleanup are authorized by this source-only work.
 - Fruits Delight `fruitsdelight:lemon_tree` has mining-only protection: minimum hardness 80
   and the existing diamond-or-better axe gate, at every age and on both halves. Keep it out

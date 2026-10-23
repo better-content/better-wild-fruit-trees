@@ -16,8 +16,11 @@ public final class TreeGrowthRates {
         missing.removeAll(REFERENCES.keySet());
         return java.util.Set.copyOf(missing);
     }
-    // Eight seeded, sunlit fresh native trees per species, using their native maximum trunk radius
-    // as the adult-size reference. Canopy filling may continue; no runtime maturity test exists.
+    // Legacy thirteen: eight seeded, sunlit fresh native trees, adult native maximum trunk radius.
+    // V9 diagnostic 5c099226-736b-4bf2-8bcd-3c70f889673d: eight per optional form; cactus uses
+    // native_upturned_four_arm_v1, coconut native_coconut_fruiting_crown_v1, ancient native maximum
+    // trunk radius. Four measured references separately Source-admitted by the lead; not activation
+    // or full-gate acceptance. Canopy filling may continue; no runtime maturity test exists.
     public static final Map<String, Reference> REFERENCES = Map.ofEntries(
         Map.entry("apple", new Reference(.7F, 204.375)),
         Map.entry("bayberry", new Reference(.9F, 273.625)),
@@ -31,7 +34,11 @@ public final class TreeGrowthRates {
         Map.entry("orange", new Reference(1.2F, 395.5)),
         Map.entry("peach", new Reference(.8F, 326.5)),
         Map.entry("pear", new Reference(.7F, 219.25)),
-        Map.entry("persimmon", new Reference(1.2F, 282.125)));
+        Map.entry("persimmon", new Reference(1.2F, 282.125)),
+        Map.entry("saguaro", new Reference(1F, 26.75)),
+        Map.entry("coconut", new Reference(.8F, 14.0)),
+        Map.entry("ancient", new Reference(.5F, 89.125)),
+        Map.entry("saguaro_mega", new Reference(.6F, 67.25)));
     private TreeGrowthRates() {}
 
     public static Reference reference(String species) {

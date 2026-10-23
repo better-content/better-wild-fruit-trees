@@ -125,6 +125,11 @@ dependencies {
         runtimeOnly(fg.deobf("curse.maven:quark-243121:6427817"))
         runtimeOnly(fg.deobf("curse.maven:zeta-968868:7335229"))
     }
+    // Only the explicit SOURCE proof needs finally-safe native preparation wrappers.
+    lightQueueProof?.let {
+        add(it.compileOnlyConfigurationName, "io.github.llamalad7:mixinextras-common:0.5.4")
+        add(it.runtimeOnlyConfigurationName, "io.github.llamalad7:mixinextras-forge:0.5.4")
+    }
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
@@ -349,6 +354,13 @@ if (lightQueueProof != null) {
             binding.setProperty("classHashSetSha256", sha(manifest))
             val forge = configurations.compileClasspath.get().files.single { it.name == "forge-1.20.1-47.4.13_mapped_official_1.20.1.jar" }
             binding.setProperty("sdkSha256", sha(forge.readBytes()))
+            binding.setProperty("fixturePreparation", "exact3-native-ticking-v1")
+            val extras = configurations[proofSet.compileClasspathConfigurationName].files.single { it.name == "mixinextras-common-0.5.4.jar" }
+            check(sha(extras.readBytes()) == "e2de9240ce39af783a83bcd315445b84d675c01e4655f3ad55c163071ce15fee") { "Preparation wrapper SDK drift" }
+            binding.setProperty("preparationSdkSha256", sha(extras.readBytes()))
+            val extrasRuntime = configurations[proofSet.runtimeClasspathConfigurationName].files.single { it.name == "mixinextras-forge-0.5.4.jar" }
+            check(sha(extrasRuntime.readBytes()) == "7922899a121a27f63a69a9ffe57470d8719cc52d239dfa9408e15d32a7b4c264") { "Preparation runtime SDK drift" }
+            binding.setProperty("preparationRuntimeSha256", sha(extrasRuntime.readBytes()))
             binding.setProperty("nativeInputReceiptSha256", sha(nativeAttempt.resolve("before-own-prepare.properties").readBytes()))
             Files.newBufferedWriter(nativeAttempt.resolve("light-queue-proof-bindings.properties").toPath(), StandardOpenOption.CREATE_NEW).use { binding.store(it, "SOURCE mechanism experiment, not a fence or original growth qualification") }
         }

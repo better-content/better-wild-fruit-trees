@@ -30,14 +30,18 @@ public final class LightQueueProofGameTests {
   try{
    var expected=new TreeSet<String>();
    try(var in=LightQueueProofGameTests.class.getResourceAsStream("/light-queue-proof-required-tests.txt")){if(in==null)throw new IllegalStateException("missing required-29 inventory");expected.addAll(new String(in.readAllBytes(),StandardCharsets.UTF_8).lines().filter(s->!s.isBlank()).toList());}
-   var actual=new TreeSet<String>();
-   for(TestFunction f:GameTestRegistry.getAllTestFunctions())if(f.getTestName().startsWith(WildFruitTrees.MOD_ID+":")){
-    h.assertTrue(f.isRequired()&&f.getMaxAttempts()==1&&f.getRequiredSuccesses()==1,"Required/no-retry registration drift "+f.getTestName());actual.add(f.getTestName().substring(WildFruitTrees.MOD_ID.length()+1));
+   var registry=new ArrayList<QueueProofRegistry.Entry>();
+   for(TestFunction f:GameTestRegistry.getAllTestFunctions()){
+    var template=net.minecraft.resources.ResourceLocation.tryParse(f.getStructureName());
+    if(template==null)throw new IllegalStateException("Malformed native template identity "+f.getStructureName());
+    registry.add(new QueueProofRegistry.Entry(f.getTestName(),template.getNamespace(),f.isRequired(),f.getMaxAttempts(),f.getRequiredSuccesses()));
    }
-   h.assertTrue(expected.size()==29&&actual.equals(expected),"Required original26 + proof3 registration drift expected="+expected+" actual="+actual);
+   QueueProofRegistry.validate(expected,registry,WildFruitTrees.MOD_ID);
    Properties binding=new Properties();try(var in=Files.newInputStream(Path.of("light-queue-proof-bindings.properties"))){binding.load(in);}
    h.assertTrue("light-queue-proof-v1-required29".equals(binding.getProperty("profile"))&&"false".equals(binding.getProperty("sourceDirty")),"Queue proof clean Source/profile binding");
    h.assertTrue("86ce0a0aa09201b566430dfec17f7a03fd2acbd16e04b17992b6ad5e78df4b0f".equals(binding.getProperty("sdkSha256")),"Queue proof SDK binding");
+   h.assertTrue("exact3-native-ticking-v1".equals(binding.getProperty("fixturePreparation")),"Queue proof precise preparation binding");
+   h.assertTrue("e2de9240ce39af783a83bcd315445b84d675c01e4655f3ad55c163071ce15fee".equals(binding.getProperty("preparationSdkSha256"))&&"7922899a121a27f63a69a9ffe57470d8719cc52d239dfa9408e15d32a7b4c264".equals(binding.getProperty("preparationRuntimeSha256")),"Queue proof preparation SDK binding");
    for(String key:List.of("classHashSetSha256","nativeInputReceiptSha256"))h.assertTrue(binding.getProperty(key,"").matches("[a-f0-9]{64}"),"Missing binding "+key);
    h.assertTrue(binding.getProperty("sourceCommit","").matches("[a-f0-9]{40}"),"Source commit binding");QueueProofLedger.boot(binding);
   }catch(java.io.IOException malformed){h.fail("Queue proof binding/inventory unavailable: "+malformed.getClass().getName());return;}

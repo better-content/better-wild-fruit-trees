@@ -11,7 +11,7 @@ HANDLERS={
  'ThreadedPipelineMixin':{'proof$issue':1,'proof$issued':1,'proof$staged':1,'proof$batch':1,'proof$solverBefore':1,'proof$solverAfter':1,'proof$task':2,'proof$retire':1,'proof$runEnd':1,'proof$send':1},
  'SorterAdmissionMixin':{'proof$sent':1,'proof$begin':1,'proof$priority':1,'proof$end':1},
  'PublicationMixin':{'proof$publication':1},'ChunkLifecycleMixin':{'proof$correct':1,'proof$unsaved':1},
- 'TicketRemovalMixin':{'proof$removed':2},'TicketCallbackMixin':{'proof$sent':1},'MainCallbackMixin':{'proof$begin':1,'proof$end':1},'NotificationMixin':{'proof$sent':1}}
+ 'TicketRemovalMixin':{'proof$removed':2},'TicketCallbackMixin':{'proof$sent':1},'MainCallbackMixin':{'proof$begin':1,'proof$end':1},'NotificationMixin':{'proof$sent':1},'PreparationInfoMixin':{'proof$scopeSpawn':1,'proof$scopeClear':1,'proof$clear':1},'PreparationSpawnMixin':{'proof$scope':1,'proof$clear':1}}
 
 def check_sources(base=BASE):
  cfg=json.loads((base/'resources/better_wild_fruit_trees.light-queue-proof.mixins.json').read_text())
@@ -19,7 +19,7 @@ def check_sources(base=BASE):
  assert cfg['package'].replace('.','/')==PKG.rstrip('/')
  sources=list((base/'java').rglob('*.java'))
  reserved={p.stem for p in sources if '/mixin/' in str(p)}
- assert reserved==set(cfg['mixins'])==set(HANDLERS)|{'MessageAccess','TicketAccess'},'Reserved package pollution'
+ assert reserved==set(cfg['mixins'])==set(HANDLERS)|{'MessageAccess','TicketAccess','PreparationCacheAccess','PreparationMapAccess'},'Reserved package pollution'
  for p in sources:
   t=p.read_text();assert '@Pseudo'not in t and 'java.lang.reflect'not in t and 'Class.forName'not in t
   if p.parent.name=='mixin':
@@ -27,9 +27,12 @@ def check_sources(base=BASE):
  expected=[]
  for p in (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest').glob('*.java'):
   t=p.read_text()
-  if '@GameTestHolder(WildFruitTrees.MOD_ID)' in t:expected +=[(p.stem+'.'+n).lower()for n in re.findall(r'@GameTest\([^)]*\)\s+public static void (\w+)\(',t)]
+  if '@GameTestHolder(WildFruitTrees.MOD_ID)' in t:
+   assert '@PrefixGameTestTemplate(false)' in t,'Native registry identity prefix drift'
+   expected +=[n.lower()for n in re.findall(r'@GameTest\([^)]*\)\s+public static void (\w+)\(',t)]
  assert len(expected)==26,'Original mandatory inventory changed'
- expected+=['lightqueueproofgametests.'+n for n in ('samechunkstablepriority','crosschunkmixedpriority','neighborpropagation')]
+ expected+=['samechunkstablepriority','crosschunkmixedpriority','neighborpropagation']
+ assert len(set(expected))==29,'Duplicate native registry name'
  assert (base/'resources/light-queue-proof-required-tests.txt').read_text().splitlines()==sorted(expected),'Original26/proof3 manifest drift'
  fixture=(base/'java/com/bettercontent/betterwildfruittrees/gametest/queueproof/LightQueueProofGameTests.java').read_text()
  assert fixture.count('@GameTest(')==3 and 'ordinal==0' in fixture and 'which*2+ordinal'in fixture
@@ -41,10 +44,10 @@ def check_classes(classes):
   info=class_info((Path(classes)/(PKG+cls+'.class')).read_bytes());found={}
   for name,desc,_,annotations in info['methods']:
    for typ,values in annotations.items():
-    if typ not in ('Lorg/spongepowered/asm/mixin/injection/Inject;','Lorg/spongepowered/asm/mixin/injection/Redirect;'):continue
+    if typ not in ('Lorg/spongepowered/asm/mixin/injection/Inject;','Lorg/spongepowered/asm/mixin/injection/Redirect;','Lcom/llamalad7/mixinextras/injector/wrapmethod/WrapMethod;'):continue
     assert name in handlers and name not in found
     assert all(values.get(k)==handlers[name]for k in ('require','expect','allow')),'Weakened required anchor'
-    assert values.get('remap',True) and not values.get('cancellable',False),'Unmapped/cancellable method'
+    assert values.get('remap',True)==(cls not in ('PreparationInfoMixin','PreparationSpawnMixin')) and not values.get('cancellable',False),'Unmapped/cancellable method'
     found[name]=values
   assert set(found)==set(handlers),'Missing handler'
 
@@ -53,6 +56,14 @@ def abi(forge,out):
  texts={}
  for cls in ('ThreadedLevelLightEngine','ChunkTaskPriorityQueueSorter','DistanceManager','ChunkMap','ServerChunkCache','ServerChunkCache$MainThreadExecutor'):
   text=subprocess.check_output(['javap','-p','-c','-classpath',str(forge),'net.minecraft.server.level.'+cls],text=True);texts[cls]=text;(out/(cls+'.javap.txt')).write_text(text)
+ with zipfile.ZipFile(forge) as archive:
+  for owner,methods in {
+   'net/minecraft/gametest/framework/TestFunction': [('getTestName','()Ljava/lang/String;'),('getStructureName','()Ljava/lang/String;'),('isRequired','()Z'),('getMaxAttempts','()I'),('getRequiredSuccesses','()I')],
+   'net/minecraft/gametest/framework/GameTestRegistry': [('getAllTestFunctions','()Ljava/util/Collection;')],
+   'net/minecraft/resources/ResourceLocation': [('getNamespace','()Ljava/lang/String;'),('tryParse','(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;')]
+  }.items():
+   declarations=class_info(archive.read(owner+'.class'))['methods']
+   assert all(any(n==name and d==desc for n,d,_,_ in declarations) for name,desc in methods),'Actual registry ownership API drift'
  def method(cls,signature):return next(b for b in re.split(r'(?m)^  (?=\S)',texts[cls])if signature in b)
  run=method('ThreadedLevelLightEngine','void runUpdate()')
  for needle,n in [('Method java/lang/Math.min:(II)I',1),('InterfaceMethod java/lang/Runnable.run:()V',2),('Method net/minecraft/world/level/lighting/LevelLightEngine.runLightUpdates:()I',1),('InterfaceMethod it/unimi/dsi/fastutil/objects/ObjectListIterator.remove:()V',1)]:assert run.count(needle)==n,'runUpdate anchor drift '+needle
@@ -61,6 +72,17 @@ def abi(forge,out):
  removal=method('DistanceManager','void removeTicket(long,');assert removal.count('Method net/minecraft/util/SortedArraySet.remove:(Ljava/lang/Object;)Z')==2
  # Both true/false arms have real lifecycle/ticket effects; none is a drain.
  light=method('ThreadedLevelLightEngine','lightChunk(');assert 'CompletableFuture' in light
+ prep={}
+ for cls in ('GameTestInfo','StructureUtils'):
+  prep[cls]=subprocess.check_output(['javap','-p','-c','-classpath',str(forge),'net.minecraft.gametest.framework.'+cls],text=True);(out/(cls+'.javap.txt')).write_text(prep[cls])
+ def pm(cls,signature):return next(b for b in re.split(r'(?m)^  (?=\S)',prep[cls])if signature in b)
+ clear='Method net/minecraft/gametest/framework/StructureUtils.clearSpaceForStructure:'
+ assert pm('GameTestInfo','void spawnStructure(').count('Method net/minecraft/gametest/framework/StructureUtils.spawnStructure:')==1
+ assert pm('GameTestInfo','void clearStructure()').count(clear)==1
+ spawn=pm('StructureUtils','StructureBlockEntity spawnStructure(')
+ assert spawn.count('Method clearSpaceForStructure:')==1 and spawn.index('Method forceLoadChunks:')<spawn.index('Method clearSpaceForStructure:')<spawn.index('Method createStructureBlock:')
+ clearbody=pm('StructureUtils','void clearSpaceForStructure(')
+ for needle in ('Method net/minecraft/core/BlockPos.betweenClosedStream:','bipush        20','iconst_2','iconst_3'):assert needle in clearbody,'Native clear inflation drift'
  return texts
 
 def sdk(forge,processor,srg,built_map=None,built_classes=None):
@@ -72,7 +94,10 @@ def sdk(forge,processor,srg,built_map=None,built_classes=None):
   if p and p[0]=='MD:':lines.append(' '.join([p[0],p[3],p[4],p[1],p[2]]))
   elif p and p[0]in ('FD:','CL:'):lines.append(' '.join([p[0],p[2],p[1]]))
  (out/'input.srg').write_text('\n'.join(lines)+'\n')
- cp=[Path(forge),Path(processor),ROOT/'build/classes/java/main']+sorted(p for p in Path('/home/dev/.gradle/caches/modules-2/files-2.1').rglob('*.jar')if not p.name.endswith(('-sources.jar','-javadoc.jar')) and p!=Path(processor))
+ extras=list(Path('/home/dev/.gradle/caches/modules-2/files-2.1/io.github.llamalad7/mixinextras-common/0.5.4').rglob('mixinextras-common-0.5.4.jar'));assert len(extras)==1
+ assert hashlib.sha256(extras[0].read_bytes()).hexdigest()=='e2de9240ce39af783a83bcd315445b84d675c01e4655f3ad55c163071ce15fee','Preparation API pin drift'
+ runtime=list(Path('/home/dev/.gradle/caches/modules-2/files-2.1/io.github.llamalad7/mixinextras-forge/0.5.4').rglob('mixinextras-forge-0.5.4.jar'));assert len(runtime)==1 and hashlib.sha256(runtime[0].read_bytes()).hexdigest()=='7922899a121a27f63a69a9ffe57470d8719cc52d239dfa9408e15d32a7b4c264','Preparation runtime pin drift'
+ cp=[Path(forge),Path(processor),extras[0],ROOT/'build/classes/java/main']+sorted(p for p in Path('/home/dev/.gradle/caches/modules-2/files-2.1').rglob('*.jar')if not p.name.endswith(('-sources.jar','-javadoc.jar')) and p!=Path(processor))
  args=['--release','17','-d',str(out/'classes'),'-classpath',':'.join(map(str,cp)),'-processorpath',str(processor),'-processor','org.spongepowered.tools.obfuscation.MixinObfuscationProcessorTargets,org.spongepowered.tools.obfuscation.MixinObfuscationProcessorInjection','-AreobfSrgFile='+str(out/'input.srg'),'-AoutRefMapFile='+str(out/'refmap.json')]+list(map(str,sorted((BASE/'java').rglob('*.java'))))
  (out/'javac.args').write_text('\n'.join(json.dumps(s)for s in args)+'\n');result=subprocess.run(['javac','@'+str(out/'javac.args')],capture_output=True,text=True,timeout=60);(out/'javac.log').write_text(result.stdout+result.stderr)
  print('RETAINED',out,flush=True)
@@ -87,7 +112,7 @@ def sdk(forge,processor,srg,built_map=None,built_classes=None):
    declarations=class_info(archive.read(owner+'.class'))['methods']
    for name,desc,code,annotations in info['methods']:
     for key,values in annotations.items():
-     if key in ('Lorg/spongepowered/asm/mixin/injection/Inject;','Lorg/spongepowered/asm/mixin/injection/Redirect;'):
+     if key in ('Lorg/spongepowered/asm/mixin/injection/Inject;','Lorg/spongepowered/asm/mixin/injection/Redirect;','Lcom/llamalad7/mixinextras/injector/wrapmethod/WrapMethod;'):
       for selector in values['method']:
        selected=[(n,d)for n,d,_,_ in declarations if n==selector.split('(')[0] and ('('not in selector or d==selector[selector.index('('):])]
        assert len(selected)==1,'Pinned classfile selector not unique/present: '+selector
@@ -110,6 +135,7 @@ def read_payload(file,expected_records):
  assert meta.get('schema')=='light-queue-proof-v1' and meta.get('profile')=='light-queue-proof-v1-required29'
  assert meta.get('nonce')==attempt.name and meta.get('attemptDirectory')==str(attempt)
  assert meta.get('sdkSha256')==FORGE_SHA and meta.get('sourceDirty')=='false' and re.fullmatch('[a-f0-9]{40}',meta.get('sourceCommit',''))
+ assert meta.get('fixturePreparation')=='exact3-native-ticking-v1' and meta.get('preparationSdkSha256')=='e2de9240ce39af783a83bcd315445b84d675c01e4655f3ad55c163071ce15fee' and meta.get('preparationRuntimeSha256')=='7922899a121a27f63a69a9ffe57470d8719cc52d239dfa9408e15d32a7b4c264','Preparation binding mismatch'
  assert meta.get('globalDrainProven')=='false' and meta.get('incomplete')=='true' and meta.get('globalCoverageIncomplete')=='true'
  for key,name in [('classHashSetSha256','light-queue-proof-classes.sha256'),('nativeInputReceiptSha256','before-own-prepare.properties')]:assert meta.get(key)==hashlib.sha256((attempt/name).read_bytes()).hexdigest(),'Binding receipt mismatch '+key
  count=struct.unpack_from('>I',raw,12+size)[0];assert count==int(expected_records) and 0<count<=262144

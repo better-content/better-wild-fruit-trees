@@ -22,6 +22,12 @@ and neighbor to keep their section nonempty. These are explicitly mutative exper
 own 97×225×97 GameTest template, **not** passive growth observations. Original roots, clocks,
 seeds, references, endpoints, rate schedules, tolerance and all original mandatory tests are unchanged.
 Runtime inventory must equal the retained original 26 names plus these 3, all required/no retry.
+Native `TestFunction.getTestName()` is an unqualified lowercase **method name** here: every
+holder uses `@PrefixGameTestTemplate(false)`. Namespace ownership comes from public
+`getStructureName()` parsed as a resource location, not from a guessed test-name prefix.
+The literal manifest therefore contains all 29 native method identities. The cold oracle filters
+only by actual template namespace, then rejects extras, missing names, duplicates, nonrequired
+cases or retry/success-count changes. It never filters by the expected-name list.
 Default `verifyNativeLog` still demands 26; only this profile demands 29 and six unique outcome rows.
 The existing native diagnostic classification remains blocking. Source mechanism outcomes cannot
 waive persimmon, bayberry or any other original failure.
@@ -123,6 +129,92 @@ The log consumer verifies whole-file SHA, bounds/magic/schema/profile/nonce/sour
 manifest/input hashes, committed record counts and six unique ACKs bound to issued POST IDs.
 These hashes establish consistency, **not authenticity** or transformed-runtime class identity.
 All classes/config/refmaps/bindings/payloads are excluded from runtime archives with negatives.
+
+## Scoped pre-clear readiness candidate — SOURCE IMPLEMENTED / NATIVE PENDING
+
+Correcting registry identity does not resolve native DUMMY/pending block-entity failures during
+structure clearing. Existing BLOCK_TICKING checks in the test **body are too late** for native
+spawn/clear preparation. Source preparation below is not native success or warning closure.
+Strict failed-operation WARN audit remains blocking, including failures elsewhere in the world.
+Only the lead may run the separately preregistered probe after Source handoff.
+
+This preparation affects **only** the exact registered proof identities
+`samechunkstablepriority`, `crosschunkmixedpriority`, `neighborpropagation`, each with template
+`better_wild_fruit_trees:growth`, and only in this explicit source profile/GameTestServer. Validate
+the full owned29 registry before admitting these identities. Neither batch-name prefix, template
+alone, expected-name-only filtering nor a blanket StructureUtils wrapper is a sufficient scope.
+The old26, original4 observers and every ordinary/default RunConfig must remain outside it.
+
+Pinned native anchors, inspected before proposing any hook:
+
+* `GameTestInfo.spawnStructure(BlockPos,int)` has exactly one call to
+  `StructureUtils.spawnStructure(String,BlockPos,Rotation,int,ServerLevel,boolean)`.
+  The latter computes its own rotated bounds, calls its original forceLoadChunks, then exactly
+  one original clearSpaceForStructure, then original creation/tick/event handling. Preserve all.
+* `GameTestInfo.clearStructure()` derives actual bounds from its native structure block entity
+  and calls clearSpaceForStructure exactly once. Do not manufacture bounds from an assumed origin.
+* Native `clearSpaceForStructure(BoundingBox,int,ServerLevel)` inflates min X/Y/Z by -2/-3/-3
+  and max X/Y/Z by +3/+20/+3, inclusively. Its horizontal chunk footprint is therefore exactly
+  floorDiv(minX-2,16)..floorDiv(maxX+3,16) × floorDiv(minZ-3,16)..floorDiv(maxZ+3,16).
+  The unchanged97×225×97 template needs at most64 horizontal chunks; overflow/arithmetic errors,
+  larger bounds or unsupported rotations must fail rather than expand silently.
+
+Implemented Source contract (runtime application still pending):
+
+1. Typed required wrappers around the above native GameTestInfo spawn/clear methods and exact
+   native clear call sites. Finally-safe MixinExtras0.5.4 WrapMethod scopes are pinned and present
+   only on the explicit proof source compile/runtime configurations, never the default profile.
+   Qualify using actual public native name/template identities. Every nested GameTestInfo call,
+   including unqualified old26 calls, must push a neutral mask rather than inherit a proof scope.
+   A one-use scope token may qualify only the original spawn's exact clear call site; unrelated
+   nested/direct clears must not inherit it. Reject inconsistent nesting/reentry. Do not put a
+   generic readiness barrier around every native clear.
+2. At the exact qualified clear invocation, after original native forceLoadChunks, calculate
+   footprint from its actual BoundingBox argument. Keep arguments/floor/rotation/body/seed and
+   call counts unchanged. Prepare only this cold source fixture, never a growth/light drain.
+3. Use real native ServerChunkCache/ChunkMap and that cache's BlockableEventLoop on its owning
+   thread. Snapshot initially forced chunks; force only missing footprint chunks and remember
+   only that added lease. Run the actual private cache runDistanceManagerUpdates through a typed,
+   verified native-only invoker so holder.updateFutures has actually happened before selection.
+4. Select each actual visible ChunkHolder, require native status >= BLOCK_TICKING, capture the
+   **actual getTickingChunkFuture**, and require completed Left<LevelChunk>, never Right/null,
+   exceptional/cancelled or an unrelated FULL future. Bounded cache-loop managedBlock is allowed
+   only for this declared mutative/non-neutral preparation; never join or manually tick worlds.
+   Use one shared30-second budget, not renewed per chunk or after failure.
+5. Recheck exact visible holder and future identities, status, chunk key/world, owning thread
+   and lease ownership immediately before original clear. Preserve original clear exactly once
+   and restore only added forced tickets in finally, including original failure/timeout paths.
+   Retain original Throwable identity; attach cleanup failure rather than replace it. Never
+   release original native forced tickets or claim callback/RNG neutrality.
+6. Source controls required before handing off a candidate: all three exact identities versus wrong name/template/
+   namespace/default/old26; neutral nested masks and one-use/reentrant scopes; original call once
+   and Throwable/finally preservation; exhaustive97-width alignment/rotation/negative-coordinate
+   footprint edges and64 cap; preexisting/partial-added ticket restoration; DM-before-selection;
+   completed-Right/error/pending/stale holder/future/wrong-world/deadline/thread negatives; real
+   actual-SDK typed accessor/invoker/handler descriptors, mappings and required-apply counts;
+   unchanged default/archive/original-fixture/old4 gates and all four retained synthetic AP warnings.
+
+The pinned native prepareTickingChunk pipeline invokes LevelChunk.postProcessGeneration and
+ServerLevel.startTickingChunk in its original completion path. The Source adapter waits for that real
+TICKING future; it must **not** call postProcessGeneration, purge pending tags, fake block entities,
+return air defensively or exempt warnings. Rail's separately verified preparation is a useful
+API/invariant reference, not proof that it covers WFT's warning producers. Even with Source controls, only one newly preregistered lead invocation with strict full native warning audit
+and six correlated outcomes can evaluate it. Any remaining warning stays blocking; do not widen
+scope onto old26 or claim historical persimmon causation from an improved fixture.
+
+Preparation binds `fixturePreparation=exact3-native-ticking-v1`, common SDK SHA256
+`e2de9240ce39af783a83bcd315445b84d675c01e4655f3ad55c163071ce15fee` and Forge runtime wrapper SHA256
+`7922899a121a27f63a69a9ffe57470d8719cc52d239dfa9408e15d32a7b4c264` (MixinExtras0.5.4). The four
+additional reserved mixins/accessors do not modify the original4 observers. Their GameTest-only
+selectors are deliberately unmapped development names and independently checked against the exact
+SDK classfile; ordinary observer selectors retain their real SRG mappings. Header/consumer/fixture
+binding checks reject a payload lacking this preparation identity.
+
+The shared30-second readiness budget starts before added ticket admission and is never reset.
+It cannot preempt an individual native callback/FULL-generation call; the owning outer native
+runner remains responsible for a hard process deadline. This is not a bounded gameplay wait or
+RNG-neutral observation. Temporary fixture ports necessarily retain their world/holder/future
+for the synchronous setup lease; these are not observer buffers and are not retained after scope.
 
 ## Strict future admission decision
 

@@ -1,80 +1,45 @@
 package com.bettercontent.betterwildfruittrees.gametest.queueproof;
-
-import java.io.*;
-import java.nio.file.*;
-import java.security.*;
-import java.util.*;
-import java.util.concurrent.atomic.*;
-
-/** SOURCE-only conditional provenance. No scalar counter or acknowledgement is a fence. */
+import java.util.Properties;
+/** Nonthrowing observer boundary. No original/native pipeline call is inside any catch below. */
 public final class QueueProofLedger {
-    public static final String SCHEMA="light-queue-proof-v1";
-    public static final int LIMIT=262144,TASKS=16384,MAP=65536,THREADS=32,DEPTH=32;
-    public static final int ISSUE=1,SEND=2,ADMIT=3,STAGE=4,RUN=5,PRE=6,SOLVER_BEGIN=7,PUBLISH=8,SOLVER_END=9,POST=10,RETIRE=11,RUN_END=12,ACK=13,LIFECYCLE=14,TICKET=15,CALLBACK=16,NOTIFICATION=17;
-    private static volatile Session active;
-    private static volatile boolean closed;
-    private QueueProofLedger(){}
-    public static boolean active(){return active!=null;}
-    public static void invalid(){Session s=active;if(s!=null)s.bad.set(true);}
-    public static synchronized void boot(Properties binding){if(active==null&&!closed)active=new Session(binding);}
-    public static void intent(int slot){Session s=active;if(s!=null&&Thread.currentThread().getId()==s.owner)s.intent=slot;}
-    public static void issue(int engine,int mailbox,int x,int z,int type,int task){Session s=active;if(s==null)return;int t=s.thread(),id=s.next.incrementAndGet();if(id>=TASKS){s.bad.set(true);return;}int slot=Thread.currentThread().getId()==s.owner?s.intent:-1;
-        s.taskEngine[id]=engine;s.taskSlot[id]=slot;s.taskType[id]=type;s.taskHash[id]=task;s.taskChunk[id]=((long)x&0xffffffffL)|((long)z<<32);s.register(1,task,id);s.issuedCommit.set(id,1);s.issueStack.push(t,id,s.bad);s.submitted.incrementAndGet();if(slot==-1)s.unknown.set(true);else s.counts.incrementAndGet(slot*8);s.event(ISSUE,slot,id,s.taskChunk[id],type,engine,mailbox);}
-    public static void originalSend(int identity,int outcome){Session s=active;if(s==null)return;int id=s.issueStack.top(s.thread());if(id==0){s.unknown.set(true);return;}s.event(19,s.taskSlot[id],id,s.taskChunk[id],identity,outcome,s.taskEngine[id]);}
-    public static void originalThrowable(int point,int identity,int category){Session s=active;if(s==null)return;s.bad.set(true);s.event(18,-1,s.taskStack.top(s.thread()),0,point,identity,category);}
-    public static void issueEnd(){Session s=active;if(s!=null)s.issueStack.pop(s.thread(),s.bad);}
-    public static void sent(int function,int wrapper,long pos){Session s=active;if(s==null)return;int id=s.issueStack.top(s.thread());if(id==0)return;s.register(2,function,id);s.event(SEND,s.taskSlot[id],id,pos,function,wrapper,s.taskEngine[id]);}
-    public static void admissionBegin(int function){Session s=active;if(s!=null)s.admitStack.push(s.thread(),s.lookup(2,function),s.bad);}
-    public static void admitted(long pos,int level){Session s=active;if(s==null)return;int id=s.admitStack.top(s.thread());if(id==0){return;}int slot=s.taskSlot[id];if(pos!=s.taskChunk[id])s.bad.set(true);if(slot>=0)s.counts.incrementAndGet(slot*8+1);s.event(ADMIT,slot,id,pos,level,0,s.taskEngine[id]);}
-    public static void admissionEnd(){Session s=active;if(s!=null)s.admitStack.pop(s.thread(),s.bad);}
-    public static void staged(int engine,int task,int type){Session s=active;if(s==null)return;int id=s.lookup(1,task);if(id==0){s.unknown.set(true);s.mirrorInvalid[s.engine(engine)]=true;return;}if(s.taskEngine[id]!=engine||s.taskType[id]!=type)s.bad.set(true);int e=s.engine(engine),tail=s.tail[e];if(tail-s.head[e]>=TASKS){s.bad.set(true);return;}s.staged[e*TASKS+tail%TASKS]=id;s.tail[e]=tail+1;int slot=s.taskSlot[id];if(slot>=0)s.counts.incrementAndGet(slot*8+2);s.event(STAGE,slot,id,s.taskChunk[id],type,0,engine);}
-    public static void run(int engine,int n,int total){Session s=active;if(s==null)return;int e=s.engine(engine),t=s.thread();if(s.tail[e]-s.head[e]!=total){s.unknown.set(true);s.mirrorInvalid[e]=true;}if(s.engineActive[e])s.bad.set(true);s.engineActive[e]=true;s.runIds[e]=s.nextRun.incrementAndGet();s.batch[e]=n;s.retiredBatch[e]=0;s.phase[e]=PRE;s.runs.incrementAndGet();s.runStack.push(t,e+1,s.bad);s.event(RUN,-1,s.runIds[e],0,n,total,engine);}
-    public static void solver(boolean after){Session s=active;if(s==null)return;int e=s.runStack.top(s.thread())-1;if(e<0){s.unknown.set(true);return;}s.phase[e]=after?POST:SOLVER_BEGIN;s.event(after?SOLVER_END:SOLVER_BEGIN,-1,s.runIds[e],0,s.batch[e],0,s.engines.get(e));}
-    public static long taskBegin(int task){Session s=active;if(s==null)return 0;int id=s.lookup(1,task),e=s.runStack.top(s.thread())-1;if(e<0||id==0){s.unknown.set(true);return 0;}boolean found=false;for(int i=0;i<s.batch[e]&&s.head[e]+i<s.tail[e];i++)if(s.staged[e*TASKS+(s.head[e]+i)%TASKS]==id)found=true;if(!found)s.bad.set(true);int phase=s.phase[e];if((phase==PRE&&s.taskType[id]!=0)||(phase==POST&&s.taskType[id]!=1))s.bad.set(true);s.taskStack.push(s.thread(),id,s.bad);s.event(phase,s.taskSlot[id],id,s.taskChunk[id],0,0,s.runIds[e]);return id;}
-    public static void taskEnd(long id,boolean returned){Session s=active;if(s==null||id==0)return;if(!returned)s.bad.set(true);int popped=s.taskStack.pop(s.thread(),s.bad);if(popped!=id)s.bad.set(true);s.event(s.taskType[(int)id]==0?PRE:POST,s.taskSlot[(int)id],(int)id,s.taskChunk[(int)id],1,returned?1:0,s.taskEngine[(int)id]);}
-    public static void retired(){Session s=active;if(s==null)return;int e=s.runStack.top(s.thread())-1;if(e<0){s.unknown.set(true);return;}int id=0;if(!s.mirrorInvalid[e]&&s.head[e]<s.tail[e])id=s.staged[e*TASKS+s.head[e]%TASKS];else s.unknown.set(true);if(s.head[e]<s.tail[e])s.head[e]++;s.retiredBatch[e]++;s.retired.incrementAndGet();if(id!=0&&s.taskSlot[id]>=0)s.counts.incrementAndGet(s.taskSlot[id]*8+3);s.event(RETIRE,id==0?-1:s.taskSlot[id],id,id==0?0:s.taskChunk[id],s.retiredBatch[e],s.batch[e],s.runIds[e]);}
-    public static void runEnd(){Session s=active;if(s==null)return;int e=s.runStack.pop(s.thread(),s.bad)-1;if(e<0)return;if(s.retiredBatch[e]!=s.batch[e])s.bad.set(true);s.runs.decrementAndGet();s.engineActive[e]=false;s.event(RUN_END,-1,s.runIds[e],0,s.retiredBatch[e],s.batch[e],s.engines.get(e));}
-    public static void published(int identity){Session s=active;if(s==null)return;int e=s.runStack.top(s.thread())-1;if(e<0){s.unknown.set(true);return;}if(s.phase[e]!=SOLVER_BEGIN)s.bad.set(true);s.publications.incrementAndGet();s.event(PUBLISH,-1,s.runIds[e],0,identity,s.batch[e],s.engines.get(e));}
-    public static void lifecycle(int kind,int identity,int value){Session s=active;if(s==null)return;int id=s.taskStack.top(s.thread());int slot=id==0?(Thread.currentThread().getId()==s.owner?s.intent:-1):s.taskSlot[id];if(slot>=0)s.counts.incrementAndGet(slot*8+5);s.event(LIFECYCLE,slot,id,0,kind,identity,value);}
-    public static void ticket(long pos,boolean removed,boolean light){Session s=active;if(s==null||!light)return;int cb=s.callbackStack.top(s.thread());if(cb==0)s.unknown.set(true);s.ticketRemovals.incrementAndGet();s.event(TICKET,cb==0?-1:s.cbSlot[cb],cb,pos,removed?1:0,0,0);}
-    public static void notification(long pos,boolean callback){Session s=active;if(s==null)return;if(callback)s.callbacks.incrementAndGet();else s.notifications.incrementAndGet();s.event(NOTIFICATION,-1,0,pos,callback?1:0,0,0);}
-    public static void callbackSent(int identity,long pos,int kind){Session s=active;if(s==null)return;int cb=s.nextCallback.incrementAndGet();if(cb>=TASKS){s.bad.set(true);return;}int command=s.taskStack.top(s.thread()),e=s.runStack.top(s.thread())-1;s.cbCommand[cb]=command;s.cbSlot[cb]=command==0?-1:s.taskSlot[command];s.cbRun[cb]=e<0?0:s.runIds[e];s.register(3,identity,cb);if(kind==1)s.notifications.incrementAndGet();if(s.cbSlot[cb]>=0)s.counts.incrementAndGet(s.cbSlot[cb]*8+6);s.event(CALLBACK,s.cbSlot[cb],cb,pos,identity,-1,kind);s.event(CALLBACK,s.cbSlot[cb],cb,pos,command,-2,s.cbRun[cb]);}
-    public static void callback(int identity,boolean end){Session s=active;if(s==null)return;int cb=s.lookup(3,identity);if(cb==0)s.unknown.set(true);if(!end){s.callbackStack.push(s.thread(),cb,s.bad);s.callbacks.incrementAndGet();}else{if(s.callbackStack.pop(s.thread(),s.bad)!=cb)s.bad.set(true);s.callbackReturns.incrementAndGet();}s.event(CALLBACK,cb==0?-1:s.cbSlot[cb],cb,0,identity,end?1:0,cb==0?0:s.cbCommand[cb]);}
-    public static int submitted(int slot){Session s=active;return s==null?0:s.counts.get(slot*8);}
-    public static void ack(int slot,long pos,int before,int after,int lightBefore,int lightAfter){Session s=active;if(s==null)return;s.counts.incrementAndGet(slot*8+4);int post=0;for(int i=1;i<=s.next.get()&&i<TASKS;i++)if(s.issuedCommit.get(i)==1&&s.taskSlot[i]==slot&&s.taskType[i]==1){if(post!=0)s.bad.set(true);post=i;}if(post==0)s.bad.set(true);s.event(ACK,slot,post,pos,before,after,((long)lightBefore<<32)|Integer.toUnsignedLong(lightAfter));}
-    public static String outcome(int slot){Session s=active;if(s==null)return "missing";return "submitted="+s.counts.get(slot*8)+" admitted="+s.counts.get(slot*8+1)+" staged="+s.counts.get(slot*8+2)+" retired="+s.counts.get(slot*8+3)+" ack="+s.counts.get(slot*8+4)+" lifecycle="+s.counts.get(slot*8+5)+" globalSubmitted="+s.submitted.get()+" globalRetired="+s.retired.get()+" activeRunUpdate="+s.runs.get()+" publications="+s.publications.get()+" ticketRemovals="+s.ticketRemovals.get()+" notifications="+s.notifications.get()+" callbacks="+s.callbacks.get()+" conditionalIncomplete="+(s.bad.get()||s.unknown.get())+" incomplete=true inference=INCONCLUSIVE_NO_GLOBAL_ORDERING_PROOF";}
-    public static void completed(){Session s=active;if(s!=null)s.completed.incrementAndGet();}
-    public static boolean allCompleted(){Session s=active;return s!=null&&s.completed.get()==6;}
-    public static void flush(boolean failure){Session s=active;if(s==null)return;closed=true;active=null;try{
-        Properties p=new Properties();p.putAll(s.binding);p.setProperty("schema",SCHEMA);p.setProperty("globalDrainProven","false");p.setProperty("coverage","threaded addTask/factory/admission/stage/solver/retirement/publication; LIGHT removal/notifications/main tasks; raw layer entrypoints/unseen late submissions not globally closed");
-        int reserved=Math.min(s.sequence.get(),LIMIT);boolean pending=s.submitted.get()!=s.retired.get()||s.runs.get()!=0||s.callbacks.get()!=s.callbackReturns.get();
-        boolean incomplete=failure||s.bad.get()||s.unknown.get()||pending||s.completed.get()!=6;
-        for(String key:List.of("nonce","sourceCommit","classHashSetSha256","sdkSha256","profile"))if(p.getProperty(key,"").isBlank())incomplete=true;
-        p.setProperty("conditionalTraceIncomplete",Boolean.toString(incomplete));incomplete=true;p.setProperty("incomplete","true");p.setProperty("globalCoverageIncomplete","true");p.setProperty("callbackRngNeutralityProven","false");p.setProperty("untrackedLateWorkCannotBeExcluded","true");p.setProperty("pendingAtDetach",Boolean.toString(pending));p.setProperty("identityCollisionRule","duplicate registration invalidates identity provenance");p.setProperty("submitted",Integer.toString(s.submitted.get()));p.setProperty("retired",Integer.toString(s.retired.get()));p.setProperty("activeRunUpdate",Integer.toString(s.runs.get()));p.setProperty("observations",Integer.toString(s.completed.get()));
-        Path parent=Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();if(!parent.getFileName().toString().equals(p.getProperty("nonce"))||!parent.toString().equals(p.getProperty("attemptDirectory")))throw new IOException("nonce binding");
-        for(Path ancestor=parent;ancestor!=null;ancestor=ancestor.getParent())if(Files.isSymbolicLink(ancestor))throw new IOException("symlink ancestry");
-        Path dir=parent.resolve("light-queue-proof");Files.createDirectory(dir);Path file=dir.resolve("pipeline-v1.wftq");
-        ByteArrayOutputStream header=new ByteArrayOutputStream();p.store(header,"SOURCE mechanism, NOT growth qualification or fence");
-        try(var raw=new BufferedOutputStream(Files.newOutputStream(file,StandardOpenOption.CREATE_NEW));var out=new DataOutputStream(raw)){
-            out.writeLong(0x5746545150523031L);out.writeInt(header.size());out.write(header.toByteArray());out.writeInt(reserved);
-            for(int i=0;i<reserved;i++){int c=s.commit.get(i);out.writeInt(c);if(c!=i+1)incomplete=true;for(int j=0;j<8;j++)out.writeLong(c==i+1?s.records[i*8+j]:0);}
-        }
-        MessageDigest hash=MessageDigest.getInstance("SHA-256");try(var in=Files.newInputStream(file)){byte[] bytes=new byte[16384];for(int n;(n=in.read(bytes))!=-1;)hash.update(bytes,0,n);}
-        System.out.println("LIGHT_QUEUE_PROOF_RECEIPT path="+file+" sha256="+HexFormat.of().formatHex(hash.digest())+" records="+reserved+" incomplete="+incomplete+" inference=INCONCLUSIVE_NO_GLOBAL_ORDERING_PROOF");
-    }catch(Throwable diagnostic){try{System.out.println("LIGHT_QUEUE_PROOF_RECEIPT incomplete=true flushError="+diagnostic.getClass().getName());}catch(Throwable ignored){}}}
-    static final class Stack {final int[] entries=new int[THREADS*DEPTH],depth=new int[THREADS];void push(int thread,int id,AtomicBoolean bad){if(thread<0||depth[thread]>=DEPTH){bad.set(true);return;}entries[thread*DEPTH+depth[thread]++]=id;}int top(int thread){return thread<0||depth[thread]==0?0:entries[thread*DEPTH+depth[thread]-1];}int pop(int thread,AtomicBoolean bad){if(thread<0||depth[thread]==0){bad.set(true);return 0;}return entries[thread*DEPTH+--depth[thread]];}}
-    static final class Session {
-        final long owner=Thread.currentThread().getId();final Properties binding;volatile int intent=-1;
-        final AtomicBoolean bad=new AtomicBoolean(),unknown=new AtomicBoolean();final AtomicInteger sequence=new AtomicInteger(),nextRun=new AtomicInteger(),nextCallback=new AtomicInteger(),callbackReturns=new AtomicInteger(),next=new AtomicInteger(),submitted=new AtomicInteger(),retired=new AtomicInteger(),runs=new AtomicInteger(),completed=new AtomicInteger(),publications=new AtomicInteger(),ticketRemovals=new AtomicInteger(),notifications=new AtomicInteger(),callbacks=new AtomicInteger();
-        final AtomicIntegerArray issuedCommit=new AtomicIntegerArray(TASKS),commit=new AtomicIntegerArray(LIMIT),values=new AtomicIntegerArray(MAP),engines=new AtomicIntegerArray(4),counts=new AtomicIntegerArray(48);
-        final AtomicLongArray keys=new AtomicLongArray(MAP),threads=new AtomicLongArray(THREADS);
-        final long[] records=new long[LIMIT*8],taskChunk=new long[TASKS];final boolean[] mirrorInvalid=new boolean[4],engineActive=new boolean[4];final int[] runIds=new int[4],cbCommand=new int[TASKS],cbSlot=new int[TASKS],cbRun=new int[TASKS];final int[] taskEngine=new int[TASKS],taskSlot=new int[TASKS],taskType=new int[TASKS],taskHash=new int[TASKS],staged=new int[4*TASKS],head=new int[4],tail=new int[4],batch=new int[4],retiredBatch=new int[4],phase=new int[4];
-        final Stack issueStack=new Stack(),admitStack=new Stack(),runStack=new Stack(),taskStack=new Stack(),callbackStack=new Stack();
-        Session(Properties p){binding=new Properties();binding.putAll(p);}
-        int thread(){long id=Thread.currentThread().getId();for(int i=0;i<THREADS;i++){long found=threads.get(i);if(found==id||found==0&&threads.compareAndSet(i,0,id))return i;}bad.set(true);return -1;}
-        int engine(int id){for(int i=0;i<4;i++){int found=engines.get(i);if(found==id||found==0&&engines.compareAndSet(i,0,id))return i;}bad.set(true);return 0;}
-        void register(int role,int identity,int id){long key=((long)role<<32)|Integer.toUnsignedLong(identity);int start=(int)((key^(key>>>17))*0x9e3779b9L)&(MAP-1);for(int n=0;n<64;n++){int at=(start+n)&(MAP-1);long old=keys.get(at);if(old==key){bad.set(true);values.set(at,-1);return;}if(old==0&&keys.compareAndSet(at,0,key)){values.set(at,id);return;}}bad.set(true);}
-        int lookup(int role,int identity){long key=((long)role<<32)|Integer.toUnsignedLong(identity);int start=(int)((key^(key>>>17))*0x9e3779b9L)&(MAP-1);for(int n=0;n<64;n++){int at=(start+n)&(MAP-1);long old=keys.get(at);if(old==key){int value=values.get(at);if(value<=0){unknown.set(true);return 0;}return value;}if(old==0)return 0;}bad.set(true);return 0;}
-        void event(int kind,int slot,int id,long pos,long a,long b,long c){int i=sequence.getAndIncrement();if(i>=LIMIT){bad.set(true);return;}int at=i*8;records[at]=kind;records[at+1]=slot;records[at+2]=id;records[at+3]=pos;records[at+4]=a;records[at+5]=b;records[at+6]=c;records[at+7]=Thread.currentThread().getId();commit.set(i,i+1);}
-    }
+ public static final String SCHEMA=QueueProofLedgerEngine.SCHEMA;
+ public static final int LIMIT=QueueProofLedgerEngine.LIMIT,TASKS=QueueProofLedgerEngine.TASKS,MAP=QueueProofLedgerEngine.MAP,THREADS=QueueProofLedgerEngine.THREADS,DEPTH=QueueProofLedgerEngine.DEPTH;
+ private QueueProofLedger(){}
+ private static void fault(){try{var s=QueueProofLedgerEngine.active;if(s!=null){s.bad.set(true);s.unknown.set(true);s.observerFaults.incrementAndGet();}}catch(Throwable ignored){}}
+ public static void observerFault(){fault();}
+ private static boolean slot(int value){if(value>=0&&value<6)return true;invalid();return false;}
+ public static boolean active(){return QueueProofLedgerEngine.active();}
+ public static void boot(Properties p){QueueProofLedgerEngine.boot(p);}
+ public static void invalid(){try{QueueProofLedgerEngine.invalid();}catch(Throwable failure){fault();}}
+ public static void intent(int s){try{QueueProofLedgerEngine.intent(s);}catch(Throwable failure){fault();}}
+ /** Cold fixture lifetime; closes to UNKNOWN, never restores a previous case across async scheduling. */
+ public static Intent intentScope(int slot){intent(slot);return new Intent();}
+ public static final class Intent implements AutoCloseable {private Intent(){}public void close(){try{var s=QueueProofLedgerEngine.active;if(s!=null)s.intent=-1;}catch(Throwable failure){fault();}}}
+ public static void issue(int e,int m,int x,int z,int t,int task){try{if(t<0||t>1)invalid();QueueProofLedgerEngine.issue(e,m,x,z,t,task);}catch(Throwable failure){fault();}}
+ public static void originalSend(int i,int o){try{QueueProofLedgerEngine.originalSend(i,o);}catch(Throwable failure){fault();}}
+ public static void originalThrowable(int p,int i,int c){try{QueueProofLedgerEngine.originalThrowable(p,i,c);}catch(Throwable failure){fault();}}
+ public static void issueEnd(){try{QueueProofLedgerEngine.issueEnd();}catch(Throwable failure){fault();}}
+ public static void sent(int f,int w,long p){try{QueueProofLedgerEngine.sent(f,w,p);}catch(Throwable failure){fault();}}
+ public static void admissionBegin(int f){try{QueueProofLedgerEngine.admissionBegin(f);}catch(Throwable failure){fault();}}
+ public static void admitted(long p,int l){try{QueueProofLedgerEngine.admitted(p,l);}catch(Throwable failure){fault();}}
+ public static void admissionEnd(){try{QueueProofLedgerEngine.admissionEnd();}catch(Throwable failure){fault();}}
+ public static void staged(int e,int t,int k){try{QueueProofLedgerEngine.staged(e,t,k);}catch(Throwable failure){fault();}}
+ public static void run(int e,int n,int total){try{if(n<0||n>1000||total<n){invalid();return;}QueueProofLedgerEngine.run(e,n,total);}catch(Throwable failure){fault();}}
+ public static void solver(boolean a){try{QueueProofLedgerEngine.solver(a);}catch(Throwable failure){fault();}}
+ public static long taskBegin(int t){try{return QueueProofLedgerEngine.taskBegin(t);}catch(Throwable failure){fault();return 0;}}
+ public static void taskEnd(long id,boolean returned){try{if(id<0||id>=TASKS){invalid();return;}QueueProofLedgerEngine.taskEnd(id,returned);}catch(Throwable failure){fault();}}
+ public static void retired(){try{QueueProofLedgerEngine.retired();}catch(Throwable failure){fault();}}
+ public static void runEnd(){try{QueueProofLedgerEngine.runEnd();}catch(Throwable failure){fault();}}
+ public static void published(int i){try{QueueProofLedgerEngine.published(i);}catch(Throwable failure){fault();}}
+ public static void lifecycle(int k,int i,int v){try{QueueProofLedgerEngine.lifecycle(k,i,v);}catch(Throwable failure){fault();}}
+ public static void ticket(long p,boolean r,boolean l){try{QueueProofLedgerEngine.ticket(p,r,l);}catch(Throwable failure){fault();}}
+ public static void notification(long p,boolean c){try{QueueProofLedgerEngine.notification(p,c);}catch(Throwable failure){fault();}}
+ public static void callbackSent(int i,long p,int k){try{QueueProofLedgerEngine.callbackSent(i,p,k);}catch(Throwable failure){fault();}}
+ public static void callback(int i,boolean e){try{QueueProofLedgerEngine.callback(i,e);}catch(Throwable failure){fault();}}
+ public static int submitted(int s){try{return slot(s)?QueueProofLedgerEngine.submitted(s):0;}catch(Throwable failure){fault();return 0;}}
+ public static void ack(int s,long p,int b,int a,int lb,int la){try{if(slot(s))QueueProofLedgerEngine.ack(s,p,b,a,lb,la);}catch(Throwable failure){fault();}}
+ public static String outcome(int s){try{return slot(s)?QueueProofLedgerEngine.outcome(s):"invalid-slot incomplete=true";}catch(Throwable failure){fault();return "observer-fault incomplete=true";}}
+ public static void completed(){try{QueueProofLedgerEngine.completed();}catch(Throwable failure){fault();}}
+ public static boolean allCompleted(){try{return QueueProofLedgerEngine.allCompleted();}catch(Throwable failure){fault();return false;}}
+ public static void flush(boolean failure){QueueProofLedgerEngine.flush(failure);}
 }

@@ -4,6 +4,23 @@ from unittest.mock import patch
 import check_light_queue_proof as q
 
 class LightQueueProofControls(unittest.TestCase):
+ def test_native_observer_argument_derivations_are_guarded(self):
+  base=q.BASE/'java/com/bettercontent/betterwildfruittrees/gametest/queueproof';adapter=(base/'NativeObserver.java').read_text()
+  self.assertNotIn('->',adapter);self.assertNotIn('new ',adapter);self.assertNotIn('System.out',adapter)
+  for p in (base/'mixin').glob('*.java'):
+   if p.name.startswith('Preparation'):continue
+   text=p.read_text()
+   for unsafe in ('System.identityHashCode','((Enum','pos.toLong()','pos.asLong()','.getClass()'):
+    self.assertNotIn(unsafe,text,p.name)
+  self.assertIn('catch(Throwable diagnostic)',adapter);self.assertIn('try{NativeObserver.factory(cir.getReturnValue()', (base/'mixin/SorterAdmissionMixin.java').read_text())
+ def test_observer_sentinels_overflow_fault_and_original_forwarding(self):
+  self.jdk_extra('QueueObserverSafetySelfTest',('QueueProofLedger','QueueProofLedgerEngine'))
+ def test_cold_scope_audit_binding_and_retention_negatives(self):
+  self.jdk_extra('PreparationAuditSelfTest',('PreparationAudit','PreparationLeaseAudit','QueueClearPolicy'))
+ def jdk_extra(self,name,sources):
+  out=q.ROOT/'build/source-queue-proof-controls'/(name+'-'+str(uuid.uuid4()));out.mkdir(parents=True);classes=out/'classes';classes.mkdir();base=q.BASE/'java/com/bettercontent/betterwildfruittrees/gametest/queueproof'
+  r=subprocess.run(['javac','--release','17','-d',str(classes)]+[str(base/(n+'.java'))for n in sources]+[str(q.ROOT/'scripts'/(name+'.java'))],capture_output=True,text=True);(out/'javac.log').write_text(r.stdout+r.stderr);self.assertEqual(0,r.returncode,r.stderr)
+  r=subprocess.run(['java','-Xmx128m','-cp',str(classes),'com.bettercontent.betterwildfruittrees.gametest.queueproof.'+name,str(out/'attempts')],capture_output=True,text=True,timeout=30);(out/'result.log').write_text(r.stdout+r.stderr);self.assertEqual(0,r.returncode,r.stdout+r.stderr)
  def test_source_inventory_reserved_namespace(self):
   q.check_sources()
   out=q.ROOT/'build/source-queue-proof-controls'/('source-negatives-'+str(uuid.uuid4()));out.mkdir(parents=True)
@@ -19,7 +36,7 @@ class LightQueueProofControls(unittest.TestCase):
  def test_precise_native_preparation_policy_scope_and_finally(self):
   out=q.ROOT/'build/source-queue-proof-controls'/('preparation-jdk-'+str(uuid.uuid4()));out.mkdir(parents=True);classes=out/'classes';classes.mkdir()
   base=q.BASE/'java/com/bettercontent/betterwildfruittrees/gametest/queueproof'
-  args=['javac','--release','17','-d',str(classes)]+[str(base/(n+'.java'))for n in ('QueueProofRegistry','PreparationScope','QueueClearPolicy')]+[str(q.ROOT/'scripts/QueuePreparationSelfTest.java')]
+  args=['javac','--release','17','-d',str(classes)]+[str(base/(n+'.java'))for n in ('QueueProofRegistry','PreparationScope','PreparationAudit','QueueClearPolicy')]+[str(q.ROOT/'scripts/QueuePreparationSelfTest.java')]
   compile=subprocess.run(args,capture_output=True,text=True);(out/'javac.log').write_text(compile.stdout+compile.stderr);self.assertEqual(0,compile.returncode,compile.stderr)
   result=subprocess.run(['java','-Xmx128m','-cp',str(classes),'QueuePreparationSelfTest'],capture_output=True,text=True,timeout=45);(out/'result.log').write_text(result.stdout+result.stderr);self.assertEqual(0,result.returncode,result.stdout+result.stderr)
   info=(base/'mixin/PreparationInfoMixin.java').read_text();spawn=(base/'mixin/PreparationSpawnMixin.java').read_text()
@@ -38,7 +55,7 @@ class LightQueueProofControls(unittest.TestCase):
  def test_jdk_bounded_provenance_and_incomplete_negatives(self):
   out=q.ROOT/'build/source-queue-proof-controls'/('jdk-'+str(uuid.uuid4()));out.mkdir(parents=True);classes=out/'classes';classes.mkdir()
   source=q.BASE/'java/com/bettercontent/betterwildfruittrees/gametest/queueproof/QueueProofLedger.java'
-  r=subprocess.run(['javac','--release','17','-d',str(classes),str(source),str(q.ROOT/'scripts/QueueProofLedgerSelfTest.java')],capture_output=True,text=True);(out/'javac.log').write_text(r.stdout+r.stderr);self.assertEqual(0,r.returncode,r.stderr)
+  r=subprocess.run(['javac','--release','17','-d',str(classes),str(source),str(source.with_name('QueueProofLedgerEngine.java')),str(q.ROOT/'scripts/QueueProofLedgerSelfTest.java')],capture_output=True,text=True);(out/'javac.log').write_text(r.stdout+r.stderr);self.assertEqual(0,r.returncode,r.stderr)
   for mode in ('normal','duplicate','unknown-stage','pending','throwable','overflow','binding'):
    r=subprocess.run(['java','-cp',str(classes),'QueueProofLedgerSelfTest',mode,str(out/str(uuid.uuid4()))],capture_output=True,text=True,timeout=30);(out/(mode+'.log')).write_text(r.stdout+r.stderr);self.assertEqual(0,r.returncode,r.stdout+r.stderr)
  def test_new_native_profile_default_inert_and_archives(self):

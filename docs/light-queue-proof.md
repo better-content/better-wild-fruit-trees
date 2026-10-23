@@ -216,6 +216,59 @@ runner remains responsible for a hard process deadline. This is not a bounded ga
 RNG-neutral observation. Temporary fixture ports necessarily retain their world/holder/future
 for the synchronous setup lease; these are not observer buffers and are not retained after scope.
 
+## Native25 observer defect and blocked follow-up
+
+Native25 at2372a2e failed persimmon (341.75 vs282.125) and allthree new cases
+(`Index -16 out of bounds for length48`); there were no six observations. Root cause in the
+observer: setup intent−2 reached `counts[slot*8]` because only−1 was treated as unknown.
+This happened before an original task body and violated the observer forwarding contract.
+The Source repair separates a nonthrowing observer facade from its bounded primitive engine,
+canonicalizes unknown slots to−1, guards public tokens/counters, saturates reservations/counters,
+masks overflowing/unknown nested frames, and resets fixture intents in finally before scheduling.
+Internal diagnostic faults mark incomplete and increment `observerFaults`; catches contain no
+original pipeline call. The separate temporary-reference `NativeObserver` adapter also encloses
+all native enum/message/accessor/position/hash/Throwable derivations in diagnostic catches.
+All eight observer mixin classes route those derivations there; the factory return getter has
+its own diagnostic-only catch. Original list/remove/supplier/task/send/execute operations remain
+outside diagnostic catches; original exceptions are recorded safely and rethrown by identity. This is not an assurance against arbitrary VM/process termination.
+
+The new inert JDK controls (46 suite tests total) exercise idle−2/−1/less-than−2/at-least6, foreign thread, invalid
+long tokens, bounded ID/record/engine/thread/frame capacity, all48 counter cells and scalar
+saturation/underflow, unknown/racy frame masking, deliberately malformed diagnostic state,
+original exactly-once return/Throwable identity and finally reset. The actual SDK gate additionally
+compiles and invokes actual untransformed observer mixin bodies in an inert realm using real SDK
+and Mixin declarations (no fake SDK/World/engine). It covers nullable/wrong enum/message/accessor/
+position metadata, diagnostic Error, original list/supplier/task counts/results/exact Throwable.
+Scheduler/solver/ticket execution is not run in that realm: pinned call-site/selector checks and
+source separation controls cover those boundaries, not native liveness. `javap` of the adapter
+rejects NEW/INVOKEDYNAMIC, pipeline-operation references and observer I/O. Native runtime remains pending.
+
+A separate COLD bounded1024-row preparation audit records correlated scope IDs for admitted/neutral
+INFO/SPAWN entry/exit and exact qualified clear consumption/return. Raw bounds are recorded before
+footprint validation; valid ENTRY includes inflated bounds and indexed canonical chunk keys BEFORE
+admission. The same ordered ≤64-tile footprint goes to policy and masks. Before/added-attempt/READY/
+after forced identity masks and verified TICKING mask include known/incomplete flags. Preparation
+failure emits AFTER_POLICY_CLEANUP even before READY; cleanup failures also emit incomplete rows.
+A rejected unsupported footprint emits explicit before-admission rejection. Native references in
+the lease wrapper are cleared in close; the audit buffer retains strings/primitives only. It performs no terrain/block-entity
+query and no observer I/O. ServerStopping emits CREATE_NEW
+`light-queue-proof-preparation.properties`, bound to Source/nonce/class-set/native-input receipts.
+Missing/dirty/tampered bindings, symlink ancestry, existing output and overflow are tested.
+Identity masks describe actual forced metadata observations and attempted lease ownership, not
+callback neutrality, intervening actor exclusion or global lighting. Pure port controls cover
+64-bit/negative-key/full READY, partial force throw, original failure identity and exact prior
+mask restoration. Actual new runtime receipts
+must be reviewed, not inferred from successful compilation or from a batch-header timestamp.
+
+Native25 had no such audit. Its actual scope admission and warning-footprint membership are
+**UNKNOWN**. The retained read-only `build/source-queue-proof-controls/native25-warning-inventory.json`
+contains all18 matching raw warning/summary lines with log SHA, line positions, coordinates and
+relative batch-header timing. That timing is not preparation timing. Native failed block-entity
+loads are established; the exact pending-tag/producer/root cause is not. No speculative widening,
+manual postprocessing/purge, warning exemption, old26 barrier or historical-cause inference follows.
+**DO NOT RERUN29 until lead reviews the observer repair and scope audit design.** Persimmon and
+strict failed-operation WARNs remain blocking. Source/JDK/AP success is not native acceptance.
+
 ## Strict future admission decision
 
 **NOT ADMITTED as a fixture fence or repair.** Neither counter zero, hasLightWork=false nor a

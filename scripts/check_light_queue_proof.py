@@ -120,6 +120,14 @@ def sdk(forge,processor,srg,built_map=None,built_classes=None):
  assert any('m_9317_'in v for m in mapping.values()for v in m.values()),'Missing real private enum mapping'
  assert any('m_284002_'in v for m in mapping.values()for v in m.values()),'Missing real stage mapping'
  assert any('m_140595_'in v for m in mapping.values()for v in m.values()),'Missing real admission mapping'
+ # Inert realm loads the ACTUAL compiled source mixin bodies and actual SDK types, never World/engine.
+ realmcp=':'.join(map(str,[out/'classes',*cp]));realm=ROOT/'scripts/NativeObserverRealmSelfTest.java'
+ r=subprocess.run(['javac','--release','17','-proc:none','-cp',realmcp,'-d',str(out/'classes'),str(realm)],capture_output=True,text=True,timeout=30);(out/'realm-javac.log').write_text(r.stdout+r.stderr);assert r.returncode==0,r.stdout+r.stderr
+ r=subprocess.run(['java','-Xmx192m','-cp',realmcp,'com.bettercontent.betterwildfruittrees.gametest.queueproof.NativeObserverRealmSelfTest'],capture_output=True,text=True,timeout=30);(out/'realm.log').write_text(r.stdout+r.stderr);assert r.returncode==0,r.stdout+r.stderr
+ bytecode=subprocess.check_output(['javap','-p','-c','-v','-classpath',str(out/'classes'),'com.bettercontent.betterwildfruittrees.gametest.queueproof.NativeObserver'],text=True);(out/'NativeObserver.javap.txt').write_text(bytecode)
+ assert not re.search(r'\d+: (new|invokedynamic)\b',bytecode),'Observer adapter allocates'
+ for forbidden in ('Runnable.run','IntSupplier.getAsInt','ObjectList.add','SortedArraySet.remove','ProcessorHandle.tell','BlockableEventLoop.execute','runLightUpdates','java/lang/System.out'):
+  assert forbidden not in bytecode,'Original operation or I/O in diagnostic boundary: '+forbidden
  if built_map is not None:assert json.loads(Path(built_map).read_text())['mappings']==mapping,'Actual Gradle refmap differs from actual SDK AP control'
  if built_classes is not None:check_classes(built_classes)
  (out/'result.json').write_text(json.dumps({'actualSDK':FORGE_SHA,'actualAP':hashlib.sha256(Path(processor).read_bytes()).hexdigest(),'exit':0,'nativeApplication':'PENDING','globalDrain':'NOT_PROVEN','classAnnotations':'required exact counts','javacSyntheticWarnings':warnings,'syntheticAuthority':'actual pinned classfile selectors plus SRG mapping; not javac TypeElement'},indent=2)+'\n')

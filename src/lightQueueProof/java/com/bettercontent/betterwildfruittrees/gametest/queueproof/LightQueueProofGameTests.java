@@ -54,8 +54,7 @@ public final class LightQueueProofGameTests {
   BlockPos pos=new BlockPos((base.getX()&~15)+15,base.getY(),(base.getZ()&~15)+8),other=pos.east();
   LevelChunk a=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4),b=level.getChunkSource().getChunkNow(other.getX()>>4,other.getZ()>>4);
   if(a==null||b==null||!a.getFullStatus().isOrAfter(FullChunkStatus.BLOCK_TICKING)||!b.getFullStatus().isOrAfter(FullChunkStatus.BLOCK_TICKING)){if(h.getTick()>=deadline){QueueProofLedger.flush(true);h.fail("Queue proof native BLOCK_TICKING chunks not ready within predeclared bound; no implicit chunk load");}else h.runAfterDelay(1,()->ready(h,which,deadline));return;}
-  QueueProofLedger.intent(-2);
-  try{level.setBlock(pos.below(),Blocks.STONE.defaultBlockState(),2);level.setBlock(other.below(),Blocks.STONE.defaultBlockState(),2);level.setBlock(pos,Blocks.STONE.defaultBlockState(),2);level.setBlock(other,Blocks.AIR.defaultBlockState(),2);}finally{QueueProofLedger.intent(-1);}
+  try(var intent=QueueProofLedger.intentScope(-2)){level.setBlock(pos.below(),Blocks.STONE.defaultBlockState(),2);level.setBlock(other.below(),Blocks.STONE.defaultBlockState(),2);level.setBlock(pos,Blocks.STONE.defaultBlockState(),2);level.setBlock(other,Blocks.AIR.defaultBlockState(),2);}
   h.runAfterDelay(5,()->observe(h,which,0,pos));
  }
  private static int lifecycle(LevelChunk chunk){return (chunk.isLightCorrect()?1:0)|(chunk.isUnsaved()?2:0);}
@@ -64,13 +63,12 @@ public final class LightQueueProofGameTests {
   if(chunk==null||!chunk.getFullStatus().isOrAfter(FullChunkStatus.BLOCK_TICKING)){QueueProofLedger.flush(true);h.fail("Queue proof chunk unloaded; no hidden reload");return;}
   var engine=source.getLightEngine();BlockPos other=which==0?pos.west():pos.east();
   int before=lifecycle(chunk),lightBefore=engine.getLayerListener(LightLayer.BLOCK).getLightValue(other);CompletableFuture<ChunkAccess> future;
-  QueueProofLedger.intent(slot);
-  try{
+  try(var intent=QueueProofLedger.intentScope(slot)){
    level.setBlock(pos,ordinal==0?Blocks.GLOWSTONE.defaultBlockState():Blocks.STONE.defaultBlockState(),2);
    if(which==1)engine.updateSectionStatus(SectionPos.of(pos),false); // actual fixed-priority native route, NOT passive
    engine.checkBlock(other);
    future=engine.lightChunk(chunk,which!=2); // neighbor case explicitly exercises real false-arm propagation
-  }finally{QueueProofLedger.intent(-1);}
+  } // intent is UNKNOWN before any async scheduling
   h.assertTrue(QueueProofLedger.submitted(slot)>=3,"Required original addTask issue hooks missing");
   poll(h,which,ordinal,pos,other,chunk,future,before,lightBefore,h.getTick()+100);
  }

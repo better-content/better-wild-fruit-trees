@@ -16,5 +16,5 @@ public abstract class PreparationInfoMixin {
  @WrapMethod(method="clearStructure()V",require=1,expect=1,allow=1,remap=false)
  private void proof$scopeClear(Operation<Void> original){GameTestInfo info=(GameTestInfo)(Object)this;try(var scope=PreparationScope.info(info.getTestName(),info.getStructureName())){if(scope.qualified())QueueProofNativeRegistry.validate();original.call();}}
  @Redirect(method="clearStructure()V",at=@At(value="INVOKE",target="Lnet/minecraft/gametest/framework/StructureUtils;clearSpaceForStructure(Lnet/minecraft/world/level/levelgen/structure/BoundingBox;ILnet/minecraft/server/level/ServerLevel;)V",remap=false),require=1,expect=1,allow=1,remap=false)
- private void proof$clear(BoundingBox bounds,int floor,ServerLevel world){if(PreparationScope.takeInfoClear()){try(var lease=QueueClearPreparation.prepare(bounds,world)){StructureUtils.clearSpaceForStructure(bounds,floor,world);}}else StructureUtils.clearSpaceForStructure(bounds,floor,world);}
+ private void proof$clear(BoundingBox bounds,int floor,ServerLevel world){if(PreparationScope.takeInfoClear()){try(var lease=QueueClearPreparation.prepare(bounds,world)){StructureUtils.clearSpaceForStructure(bounds,floor,world);PreparationScope.clearReturned();}}else StructureUtils.clearSpaceForStructure(bounds,floor,world);}
 }

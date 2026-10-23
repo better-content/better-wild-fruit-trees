@@ -50,7 +50,13 @@ class OriginalLightProbeTest(unittest.TestCase):
         for forbidden in ('System.out', 'getBlockState(', 'setBlock(', 'getChunk(', 'getBrightness(', 'getLightValue(',
                           'nextInt(', 'nextFloat(', 'setSeed(', 'synchronized', '.join(', '.wait(', '.sleep(', 'ThreadLocal', 'Map<'):
             self.assertNotIn(forbidden, before_print)
-        for source in (ROOT/'src/nativeProbe/java').rglob('*.java'):
+        adapter = (ROOT/'src/nativeProbe/java/com/bettercontent/betterwildfruittrees/gametest/nativeprobe/NativeStateCodes.java').read_text()
+        self.assertIn('@SubscribeEvent\n    public static void starting(ServerStartingEvent ignored)', adapter)
+        self.assertIn('new StateCodebook.Builder<BlockState>(131072)', adapter)
+        hot = adapter.split('public static long code(BlockState state)', 1)[1]
+        for forbidden in ('BuiltInRegistries', 'getValues(', 'getStateDefinition(', 'starting(', 'new ', 'System.out', 'synchronized'):
+            self.assertNotIn(forbidden, hot)
+        for source in (ROOT/'src/nativeProbe/java').rglob('*Mixin.java'):
             text = source.read_text()
             for forbidden in ('getBlockState(', 'getChunk(', 'getBlock(', 'Block.getId(', 'setReturnValue(', '.cancel(', 'cancellable = true', 'System.out', '@GameTest'):
                 self.assertNotIn(forbidden, text)

@@ -59,8 +59,9 @@ can-see-below-water result, brightness result, adequacy result, attempted-write 
 position. Counts and hashes for the first four use only positions and actual results.
 The write hash is **position-only**. None includes object identity, publication sequence,
 version, slot or thread ID. These channels can locate a first cross-run divergence; they
-are bounded noncryptographic summaries, not full-state/geometry equality proofs. Actual
-states cannot be decoded from this trace without an additional, separately reviewed design.
+are bounded noncryptographic summaries, not full-state/geometry equality proofs. Opaque
+state identities cannot be decoded or compared across JVMs. The separately versioned
+canonical-state refinement below does not change these original five channels.
 
 Opaque state/storage identity hashes, event sequence and version intervals are separate
 provenance/tails, **not comparable between JVMs**, and identity hashes can collide. A
@@ -75,6 +76,60 @@ Output is flushed only after each measured loop, before its unchanged acceptance
 Logging/appender and observation overhead can affect later scheduling; interpret comparisons
 accordingly. No automatic acceptance logic consumes these diagnostic records.
 
+## Separate location/intensity and canonical-state refinement
+
+`ORIGINAL_LIGHT_REFINED` adds independent per-pulse `skyPositionHash` and a fixed 16-bin
+`skyIntensityHistogram`, ordered by the actual returned intensities 0–15. The position-only
+hash uses the same ordered original `(J)I` read positions but **not their results**. The
+histogram counts actual returns but **not their positions**. Together with the unchanged
+original ordered position+result hash, these help distinguish changes in queried locations
+from changes in the light returned at those locations. Histograms discard order; none of
+these compact channels is a full positional light snapshot or collision-free equality proof.
+
+A native-only `NativeStateCodes` subscriber builds its codebook at Forge `ServerStarting`.
+Pinned `GameTestServer.initServer` calls `handleServerStarting` after level loading and
+before tests are started later by `tickServer`. The adapter enumerates registered blocks'
+immutable `StateDefinition.getPossibleStates()` values, never world/position states. It
+stops after at most 131,072 admitted identities plus one excess detection. It retains only
+bounded, globally interned immutable BlockStates as Minecraft objects; the JDK ledger still
+retains **no Minecraft objects**. Registry/property access and SHA work occur only here,
+not in measured callbacks. There is no lazy bootstrap, readiness wait, retry or barrier.
+Missing startup remains unknown/incomplete rather than forcing bootstrap during measurement.
+
+Canonical schema `original-state-v1` concatenates the fixed schema string, a length-prefixed
+namespaced block key, the property count followed by `:`, then sorted property-name/value
+scalars. Each scalar is decimal Java string length (UTF-16 units), `:`, and its string value.
+The code is the first 64 bits, big-endian signed, of SHA-256 of that canonical UTF-8 string.
+Zero is reserved for an actual null returned state and `Long.MIN_VALUE` for unknown. Reserved
+hashes, conflicting codes/canonical strings or identities, an empty book, or exceeding the
+cap make the **entire** book incomplete; its non-null lookups then return unknown. Unknown
+identities never trigger registry/property queries or insertion. A frozen private identity-map
+copy cannot be mutated by its builder, and lookup never calls state equality/property methods.
+
+The startup-only `ORIGINAL_STATE_CODEBOOK` marker records schema, entry count, completeness,
+collision/invalid and excess counters, and a SHA-256 digest of the schema plus the sorted,
+length-prefixed distinct canonical strings. The digest is independent of registration order
+and opaque object identities. Repeated equivalent canonical strings share a code. Digest and
+counts are diagnostic domain provenance, not proof of measured world state. A startup adapter
+failure emits `complete=false` without retaining the exception/server/event object.
+
+The existing chunk RETURN callback still records its original position/opaque identity
+channel. It additionally performs only two frozen codebook identity lookups and sends primitive
+requested/actually-returned-old-state codes to the ledger. New per-pulse `canonicalWriteCount`
+and `canonicalWriteHash` hash the ordered position/requested-code/returned-code triples;
+`ORIGINAL_CANONICAL_WRITE` keeps a separate 64-entry tail of those triples with pulse/within-pulse
+index. No new lookup of the post-write world state occurs. Null old-state returns have code zero;
+this channel remains an attempted-write RETURN trace, not proof of full realized geometry.
+
+`canonicalUnknown` counts writes with an unknown component. Session-level
+`canonicalIncomplete=true` is set if bootstrap was not complete before the scope or any
+unknown was encountered. Never interpret matching unknown/sentinel codes as state equality.
+Only matching schema and complete codebook/observations permit canonical cross-run comparison;
+64-bit codes and rolling aggregate hashes still have finite collision risk. Incomplete canonical
+evidence does not erase the independently captured light/original channels or change native
+acceptance. Startup allocation and extra observations may affect later scheduling, so neither
+this refinement nor any passing retry proves the historical cause of orange drift.
+
 ## Controls and remaining acceptance
 
 The native-only `verifyNativeLightProbe` dependency validates pinned archives, original
@@ -83,7 +138,12 @@ counts/refmaps. It also runs the pinned 0.8.5 Mixin AP on authored ABI stubs wit
 expected mappings. Ordinary Python tests run pure JDK authored-stub controls for forwarded
 arguments, exactly-once calls, unchanged results, original exception identity, inactive
 no-observation behavior, absence of loop I/O, scope cleanup, and overflow/seed bounds.
-These controls do not launch Minecraft or replace actual required Mixin application.
+Refinement controls also pin the canonical SHA code, property/registration-order invariance,
+frozen identity-only lookup, collision/reserved/cap/empty-book failure, missing bootstrap,
+known/unknown hot-path query counters, location/intensity separation and canonical versus
+opaque-write channels. Actual compiled subscriber metadata and pinned immutable-state APIs/
+GameTest startup ordering are checked without running Minecraft. These controls do not replace
+actual event delivery, startup marker completeness or required native Mixin application.
 
 Only the lead runs Gradle/native verification under the canonical shared cache lock.
 Compilation, native configuration loading/application and present/absent/stage-default

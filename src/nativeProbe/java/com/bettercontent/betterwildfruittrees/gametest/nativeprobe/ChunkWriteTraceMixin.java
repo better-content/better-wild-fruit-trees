@@ -15,6 +15,8 @@ public abstract class ChunkWriteTraceMixin {
     private void trace$write(BlockPos pos, BlockState state, boolean moving, CallbackInfoReturnable<BlockState> cir) {
         if (!OriginalLightTrace.ownerActive()) return;
         BlockState old = cir.getReturnValue();
-        OriginalLightTrace.write(pos.asLong(), System.identityHashCode(state), System.identityHashCode(old), old != null);
+        long packed = pos.asLong();
+        OriginalLightTrace.write(packed, System.identityHashCode(state), System.identityHashCode(old), old != null);
+        OriginalLightTrace.canonicalWrite(packed, NativeStateCodes.code(state), NativeStateCodes.code(old));
     }
 }

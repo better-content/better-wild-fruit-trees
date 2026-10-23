@@ -20,11 +20,21 @@ public final class NativeLightTraceSelfTest {
         check(matcher.find(), "missing comparable channels");
         return java.util.Arrays.stream(matcher.group(1).split(", ")).mapToLong(Long::parseLong).toArray();
     }
+    static long scalar(String text, String key) {
+        var matcher = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(key)+"=(-?[0-9]+)").matcher(text);
+        check(matcher.find(), "missing refined channel " + key); return Long.parseLong(matcher.group(1));
+    }
+    static long[] histogram(String text) {
+        var matcher = java.util.regex.Pattern.compile("skyIntensityHistogram=\\[([^]]+)\\]").matcher(text);
+        check(matcher.find(), "missing histogram");
+        return java.util.Arrays.stream(matcher.group(1).split(", ")).mapToLong(Long::parseLong).toArray();
+    }
     public static void main(String[] args) throws Throwable {
         var output = new ByteArrayOutputStream();
         var prior = System.out;
         System.setOut(new PrintStream(output));
         try {
+            OriginalLightTrace.stateCodesReady(true);
             var leaves = new LeavesLightTraceMixin() {};
             var pos = new BlockPos();
             var failure = new IllegalStateException("same original exception");
@@ -80,6 +90,7 @@ public final class NativeLightTraceSelfTest {
             worker.start(); worker.join(); // Test harness only; production observer has no wait/barrier.
             OriginalLightTrace.skyReturn(41, 123L, 9);
             OriginalLightTrace.write(123L, 12, 13, true);
+            OriginalLightTrace.canonicalWrite(123L, 101L, 202L);
             try { try { throw failure; } finally { OriginalLightTrace.finish(); } }
             catch (IllegalStateException error) { check(error == failure, "scope changed original exception"); }
             check(!OriginalLightTrace.ownerActive() && !OriginalLightTrace.publicationActive(), "scope leaked");
@@ -90,10 +101,26 @@ public final class NativeLightTraceSelfTest {
             OriginalLightTrace.begin("orange", 1); OriginalLightTrace.pulse(1);
             OriginalLightTrace.skyEnter(99); OriginalLightTrace.skyReturn(99, 123L, 9);
             OriginalLightTrace.write(123L, 999, 0, false);
+            OriginalLightTrace.canonicalWrite(123L, 101L, 202L);
             OriginalLightTrace.finish();
             long[] original = hashes(record), changedOpaque = hashes(output.toString());
             check(original[0] == changedOpaque[0], "storage identity/version contaminated gameplay-light hash");
             check(original[4] == changedOpaque[4], "state identity/change result contaminated position-only hash");
+            check(scalar(record, "skyPositionHash") == scalar(output.toString(), "skyPositionHash"), "sky position hash depends on opaque identity");
+            check(scalar(record, "canonicalWriteHash") == scalar(output.toString(), "canonicalWriteHash"), "canonical hash depends on opaque identity");
+            check(histogram(record).length == 16 && histogram(record)[9] == 1 && java.util.Arrays.stream(histogram(record)).sum() == 1, "bad actual light histogram");
+            output.reset();
+            OriginalLightTrace.begin("orange", 3); OriginalLightTrace.pulse(1);
+            OriginalLightTrace.skyEnter(101); OriginalLightTrace.skyReturn(101, 123L, 14);
+            OriginalLightTrace.write(123L, 999, 0, false); OriginalLightTrace.canonicalWrite(123L, 103L, 202L);
+            OriginalLightTrace.finish();
+            check(scalar(record, "skyPositionHash") == scalar(output.toString(), "skyPositionHash"), "light-result change contaminated location-only hash");
+            check(hashes(record)[0] != hashes(output.toString())[0] && histogram(output.toString())[14] == 1, "actual light change concealed");
+            check(hashes(record)[4] == hashes(output.toString())[4] && scalar(record, "canonicalWriteHash") != scalar(output.toString(), "canonicalWriteHash"), "canonical state change concealed/position-only channel altered");
+            output.reset();
+            OriginalLightTrace.begin("orange", 4); OriginalLightTrace.pulse(1);
+            OriginalLightTrace.skyEnter(303); OriginalLightTrace.skyReturn(303, 124L, 9); OriginalLightTrace.finish();
+            check(scalar(record, "skyPositionHash") != scalar(output.toString(), "skyPositionHash") && java.util.Arrays.equals(histogram(record), histogram(output.toString())), "query-location change not separable from actual intensities");
             output.reset();
             OriginalLightTrace.begin("orange", 6); OriginalLightTrace.pulse(4097); OriginalLightTrace.finish();
             check(output.toString().contains("overflow=true"), "pulse overflow concealed");

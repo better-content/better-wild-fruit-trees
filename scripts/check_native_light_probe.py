@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import uuid
+import zipfile
 from coconut_mapping import class_info
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,7 +50,20 @@ def native_abi(forge, dt, mcp):
     for name, descriptor, srg in MAP:
         assert f'MD: {srg} {descriptor} {name} {descriptor}' in mapping, 'Pinned MCP/SRG method drift'
     assert f'FD: {FIELD_SRG} {FIELD}' in mapping, 'Pinned publication field mapping drift'
-    print('Pinned original read/return/PUTFIELD/descriptor/SRG ABI controls passed')
+    with zipfile.ZipFile(forge) as archive:
+        for owner, name, descriptor in (
+            (LEVEL+'block/Block', 'getStateDefinition', '()Lnet/minecraft/world/level/block/state/StateDefinition;'),
+            (LEVEL+'block/state/StateDefinition', 'getPossibleStates', '()Lcom/google/common/collect/ImmutableList;'),
+            (LEVEL+'block/state/StateHolder', 'getValues', '()Lcom/google/common/collect/ImmutableMap;'),
+            (LEVEL+'block/state/properties/Property', 'getName', '()Ljava/lang/String;'),
+            (LEVEL+'block/state/properties/Property', 'getName', '(Ljava/lang/Comparable;)Ljava/lang/String;')):
+            declarations = class_info(archive.read(owner+'.class'))['methods']
+            assert any(n == name and d == descriptor for n, d, _, _ in declarations), 'Native immutable-state bootstrap API drift'
+    startup = method(forge, 'net.minecraft.gametest.framework.GameTestServer', 'boolean initServer()')
+    assert startup.index('Method loadLevel:()V') < startup.index('ServerLifecycleHooks.handleServerStarting:'), 'Native codebook startup ordering drift'
+    tick = method(forge, 'net.minecraft.gametest.framework.GameTestServer', 'void tickServer(')
+    assert 'Method startTests:' in tick, 'Native test startup moved'
+    print('Pinned original read/return/PUTFIELD/descriptor/SRG/startup ABI controls passed')
 
 
 def check_required_annotations(classes):
@@ -78,6 +92,15 @@ def check_required_annotations(classes):
             at = found['trace$published']['at'][0][1]
             assert at['value'] == 'FIELD' and at['opcode'] == 181, 'Not observing original PUTFIELD'
             assert at['shift'][1] == 'AFTER', 'Publication observation must follow original write'
+
+
+def check_codebook_subscriber(classes):
+    info = class_info((Path(classes)/(PACKAGE+'NativeStateCodes.class')).read_bytes())
+    subscriber = info['annotations'].get('Lnet/minecraftforge/fml/common/Mod$EventBusSubscriber;', {})
+    assert subscriber.get('modid') == 'better_wild_fruit_trees' and subscriber.get('bus', (None, None))[1] == 'FORGE', 'Missing native-only codebook Forge subscriber'
+    assert any(name == 'starting' and descriptor == '(Lnet/minecraftforge/event/server/ServerStartingEvent;)V'
+               and access & 9 == 9 and 'Lnet/minecraftforge/eventbus/api/SubscribeEvent;' in annotations
+               for name, descriptor, access, annotations in info['methods']), 'Missing startup-only codebook event handler'
 
 
 def expected_refmap():
@@ -111,7 +134,14 @@ def controls(processor=None):
         p.write_text('package '+name.rsplit('.', 1)[0]+'; '+text)
         sources.append(p)
     write('net.minecraft.core.BlockPos', 'public class BlockPos { public int encodes; public long asLong() { encodes++; return 123L; } }')
-    write('net.minecraft.world.level.block.state.BlockState', 'public class BlockState {}')
+    write('net.minecraft.world.level.block.state.properties.Property', 'public class Property<T extends Comparable<T>> { public String getName(){return "age";} public String getName(T value){return value.toString();} }')
+    write('net.minecraft.world.level.block.state.BlockState', 'public class BlockState { public static int propertyReads; public java.util.Map<net.minecraft.world.level.block.state.properties.Property<?>,Comparable<?>> getValues(){propertyReads++; return java.util.Map.of();} }')
+    write('net.minecraft.world.level.block.state.StateDefinition', 'public class StateDefinition { private final java.util.List<BlockState> states; public StateDefinition(BlockState state){states=java.util.List.of(state);} public java.util.List<BlockState> getPossibleStates(){return states;} }')
+    write('net.minecraft.world.level.block.Block', 'public class Block { public final String name; private final net.minecraft.world.level.block.state.StateDefinition states; public Block(String n, net.minecraft.world.level.block.state.BlockState s){name=n;states=new net.minecraft.world.level.block.state.StateDefinition(s);} public net.minecraft.world.level.block.state.StateDefinition getStateDefinition(){return states;} }')
+    write('net.minecraft.core.registries.BuiltInRegistries', 'public class BuiltInRegistries { public static final Registry BLOCK = new Registry(); public static class Registry implements Iterable<net.minecraft.world.level.block.Block> { public int lookups; private final java.util.List<net.minecraft.world.level.block.Block> blocks=new java.util.ArrayList<>(); public void add(net.minecraft.world.level.block.Block b){blocks.add(b);} public String getKey(net.minecraft.world.level.block.Block b){lookups++; return b.name;} public java.util.Iterator<net.minecraft.world.level.block.Block> iterator(){lookups++; return blocks.iterator();} } }')
+    write('net.minecraftforge.event.server.ServerStartingEvent', 'public class ServerStartingEvent {}')
+    write('net.minecraftforge.eventbus.api.SubscribeEvent', 'public @interface SubscribeEvent {}')
+    write('net.minecraftforge.fml.common.Mod', 'public @interface Mod { public @interface EventBusSubscriber {String modid(); Bus bus(); public enum Bus {FORGE, MOD} } }')
     write('net.minecraft.world.level.LightLayer', 'public enum LightLayer { SKY, BLOCK }')
     write('net.minecraft.world.level.LevelReader', 'public interface LevelReader { boolean canSeeSkyFromBelowWater(net.minecraft.core.BlockPos p); }')
     write('net.minecraft.world.level.BlockAndTintGetter', 'public interface BlockAndTintGetter { int getBrightness(LightLayer l, net.minecraft.core.BlockPos p); }')
@@ -129,9 +159,9 @@ def controls(processor=None):
         for name in ('Inject', 'Redirect'):
             write('org.spongepowered.asm.mixin.injection.'+name, 'public @interface '+name+' { String[] method(); At[] at(); int require(); int expect() default 1; int allow() default -1; boolean remap() default true; }')
         write('org.spongepowered.asm.mixin.injection.callback.CallbackInfo', 'public class CallbackInfo {}')
-        write('org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable', 'public class CallbackInfoReturnable<T> extends CallbackInfo { public T getReturnValue(){ return null; } }')
+        write('org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable', 'public class CallbackInfoReturnable<T> extends CallbackInfo {private final T value; public CallbackInfoReturnable(String name, boolean cancellable, T v){value=v;} public T getReturnValue(){ return value; } }')
     sources += sorted((ROOT/'src/nativeProbe/java').rglob('*.java'))
-    sources += [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java', ROOT/'scripts/NativeLightTraceSelfTest.java']
+    sources += [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java', ROOT/'scripts/NativeLightTraceSelfTest.java', ROOT/'scripts/StateCodebookSelfTest.java']
     classes = out/'classes'
     classes.mkdir()
     command = ['javac', '--release', '17', '-d', str(classes)]
@@ -146,10 +176,12 @@ def controls(processor=None):
     (out/'javac.log').write_text(result.stdout+result.stderr)
     assert result.returncode == 0, result.stderr
     check_required_annotations(classes)
+    check_codebook_subscriber(classes)
     runtime = str(classes) + (':'+str(processor) if processor else '')
-    result = subprocess.run(['java', '-cp', runtime, 'NativeLightTraceSelfTest'], capture_output=True, text=True, timeout=15)
-    (out/'selftest.log').write_text(result.stdout+result.stderr)
-    assert result.returncode == 0, result.stderr
+    for name in ('NativeLightTraceSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.nativeprobe.StateCodebookSelfTest'):
+        result = subprocess.run(['java', '-cp', runtime, name], capture_output=True, text=True, timeout=15)
+        (out/(name.rsplit('.', 1)[-1]+'.log')).write_text(result.stdout+result.stderr)
+        assert result.returncode == 0, result.stderr
     if processor:
         check_refmap(out/'refmap.json')
     print('Retained pure native light controls:', out)
@@ -163,4 +195,5 @@ if __name__ == '__main__':
     if len(sys.argv) == 7:
         check_refmap(sys.argv[5])
         check_required_annotations(sys.argv[6])
+        check_codebook_subscriber(sys.argv[6])
         print('Actual compiled nonshipping native probe annotations/refmap verified (not native application acceptance)')

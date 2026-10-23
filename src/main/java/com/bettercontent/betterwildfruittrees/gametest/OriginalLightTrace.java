@@ -10,6 +10,8 @@ public final class OriginalLightTrace {
     public static final int SKY = 0, CAN_SEE = 1, BRIGHTNESS = 2, ADEQUATE = 3, WRITE = 4;
     private static final int PULSES = 4096, STORAGES = 16, TAIL = 64, EVENT_LIMIT = 1_000_000;
     private static volatile Session active;
+    private static volatile boolean stateCodesReady;
+    public static void stateCodesReady(boolean complete) { stateCodesReady = complete; }
     private OriginalLightTrace() {}
 
     public static boolean ownerActive() {
@@ -37,6 +39,19 @@ public final class OriginalLightTrace {
         Session s = active;
         if (s == null || s.owner != Thread.currentThread().getId()) return;
         s.record(WRITE, pos, changed ? 1 : 0, requestedStateIdentity, returnedStateIdentity, 0, 0);
+    }
+    public static void canonicalWrite(long pos, long requestedCode, long returnedCode) {
+        Session s = active;
+        if (s == null || s.owner != Thread.currentThread().getId()) return;
+        int p = s.pulse;
+        if (p < 1 || p > PULSES || s.canonicalCounts[p] >= EVENT_LIMIT) { s.overflow.set(true); return; }
+        int index = ++s.canonicalCounts[p];
+        if (requestedCode == Long.MIN_VALUE || returnedCode == Long.MIN_VALUE) {
+            s.canonicalIncomplete = true; s.canonicalUnknown[p]++;
+        }
+        s.canonicalHashes[p] = mix(mix(mix(s.canonicalHashes[p], pos), requestedCode), returnedCode);
+        long[] entry = s.canonicalTail[(int)(s.canonicalTailCount++ % TAIL)];
+        entry[0] = p; entry[1] = index; entry[2] = pos; entry[3] = requestedCode; entry[4] = returnedCode;
     }
     public static void skyEnter(int storageIdentity) {
         Session s = active;
@@ -93,6 +108,12 @@ public final class OriginalLightTrace {
         final long[][] tail = new long[TAIL][9];
         final int[] minima = new int[PULSES + 1];
         final long[] firstLowPos = new long[PULSES + 1];
+        final long[] skyPositionHashes = new long[PULSES + 1], canonicalHashes = new long[PULSES + 1];
+        final int[][] skyHistograms = new int[PULSES + 1][16];
+        final int[] canonicalCounts = new int[PULSES + 1], canonicalUnknown = new int[PULSES + 1];
+        final long[][] canonicalTail = new long[TAIL][5];
+        long canonicalTailCount;
+        boolean canonicalIncomplete = !stateCodesReady;
         int skyDepth, skyId, skySlot;
         long tailCount, skyBefore;
         Session(int sample) { this.sample = sample; java.util.Arrays.fill(minima, 16); }
@@ -114,6 +135,11 @@ public final class OriginalLightTrace {
             // Stable across runs: excludes identity hashes and worker publication ordering.
             hashes[p][kind] = kind == WRITE ? mix(hashes[p][kind], pos)
                 : mix(mix(hashes[p][kind], pos), value);
+            if (kind == SKY) {
+                skyPositionHashes[p] = mix(skyPositionHashes[p], pos);
+                if (value >= 0 && value < 16) skyHistograms[p][value]++;
+                else overflow.set(true);
+            }
             if (kind == SKY && value < minima[p]) { minima[p] = value; firstLowPos[p] = pos; }
             long[] entry = tail[(int)(tailCount++ % TAIL)];
             entry[0] = sequence.incrementAndGet(); entry[1] = p; entry[2] = kind;
@@ -122,7 +148,7 @@ public final class OriginalLightTrace {
         }
         void print() {
             System.out.println("ORIGINAL_LIGHT_TRACE sample=" + sample + " pulses=" + pulse
-                + " diagnosticOnly=true overflow=" + overflow.get()
+                + " diagnosticOnly=true overflow=" + overflow.get() + " canonicalIncomplete=" + canonicalIncomplete
                 + " detachedNoBarrier=true identityHashesMayCollide=true publicationVersion=postPutfieldObservationNotMapGeneration");
             for (int p = 1; p <= pulse; p++) {
                 System.out.println("ORIGINAL_LIGHT_PULSE sample=" + sample + " pulse=" + p
@@ -133,6 +159,14 @@ public final class OriginalLightTrace {
             for (long i = Math.max(0, tailCount - TAIL); i < tailCount; i++)
                 System.out.println("ORIGINAL_LIGHT_TAIL sample=" + sample + " seqPulseKindPosValueIdentityDetailVersionBeforeAfter="
                     + java.util.Arrays.toString(tail[(int)(i % TAIL)]));
+            for (int p = 1; p <= pulse; p++)
+                System.out.println("ORIGINAL_LIGHT_REFINED sample=" + sample + " pulse=" + p
+                    + " skyPositionHash=" + skyPositionHashes[p] + " skyIntensityHistogram=" + java.util.Arrays.toString(skyHistograms[p])
+                    + " canonicalWriteCount=" + canonicalCounts[p] + " canonicalWriteHash=" + canonicalHashes[p]
+                    + " canonicalUnknown=" + canonicalUnknown[p] + " canonicalIncomplete=" + canonicalIncomplete);
+            for (long i = Math.max(0, canonicalTailCount - TAIL); i < canonicalTailCount; i++)
+                System.out.println("ORIGINAL_CANONICAL_WRITE sample=" + sample + " pulseIndexPosRequestedReturned="
+                    + java.util.Arrays.toString(canonicalTail[(int)(i % TAIL)]));
             for (int i = 0; i < STORAGES; i++) if (storageIds.get(i) != 0)
                 System.out.println("ORIGINAL_LIGHT_STORAGE sample=" + sample + " slot=" + i
                     + " identity=" + (int)(storageIds.get(i) - 1) + " observedPublications=" + versions.get(i));
@@ -140,7 +174,7 @@ public final class OriginalLightTrace {
                 Publication publication = publicationTail.get(i);
                 if (publication != null) System.out.println("ORIGINAL_LIGHT_PUBLICATION sample=" + sample + " " + publication);
             }
-            System.out.println("ORIGINAL_LIGHT_END sample=" + sample + " diagnosticOnly=true overflow=" + overflow.get());
+            System.out.println("ORIGINAL_LIGHT_END sample=" + sample + " diagnosticOnly=true overflow=" + overflow.get() + " canonicalIncomplete=" + canonicalIncomplete);
         }
     }
     private static long mix(long hash, long value) { return (hash ^ value) * 0x100000001b3L; }

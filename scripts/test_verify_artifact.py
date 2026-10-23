@@ -222,7 +222,11 @@ class OptionalArchiveContractTest(unittest.TestCase):
         with self.assertRaises(AssertionError): self.check(entries)
 
     def test_fixture_or_optional_upstream_implementation_must_not_ship(self):
-        for path in ['com/bettercontent/betterwildfruittrees/gametest/OptionalTreeGameTests.class',
+        for path in ['better_wild_fruit_trees.native-light.mixins.json',
+                     'better_wild_fruit_trees.native-light.refmap.json',
+                     'com/bettercontent/betterwildfruittrees/gametest/nativeprobe/LeavesLightTraceMixin.class',
+                     'com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.class',
+                     'com/bettercontent/betterwildfruittrees/gametest/OptionalTreeGameTests.class',
                      'com/ferreusveritas/dynamictreesplus/tree/CactusSpecies.class',
                      'net/hibiscus/naturespirit/blocks/CoconutBlock.class',
                      'xueluoanping/dtnatures_spirit/systems/featuregen/PalmFruitGenFeature.class',

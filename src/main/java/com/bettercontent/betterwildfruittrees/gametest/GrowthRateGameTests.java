@@ -51,11 +51,15 @@ public final class GrowthRateGameTests {
             var random = RandomSource.create(12345 + 104729L*sample);
             level.random.setSeed(54321 + 104729L*sample);
             int firstMax = -1;
+            OriginalLightTrace.begin(fruit, sample);
+            try { // ORIGINAL_LIGHT_OBSERVATION_SCOPE
             for (int pulse=1;pulse<=4096;pulse++) {
+                OriginalLightTrace.pulse(pulse);
                 branch.growSignal(level, root.above(), new GrowSignal(tree, root, tree.getEnergy(level, root), random, Direction.UP));
                 if (pulse % 16 == 0) TreeHelper.ageVolume(level, root.above(), 20, 48, 1, SafeChunkBounds.ANY);
                 if (branch.getRadius(level.getBlockState(root.above())) == tree.getMaxBranchRadius()) {firstMax=pulse; break;}
             }
+            } finally { OriginalLightTrace.finish(); } // ORIGINAL_LIGHT_OBSERVATION_SCOPE
             h.assertTrue(firstMax > 0, "Fresh native tree did not reach native full trunk radius " + id);
             sums.merge(fruit,firstMax,Integer::sum);
             System.out.println("GROWTH_SAMPLE " + fruit + " seed="+sample+" pulses="+firstMax);

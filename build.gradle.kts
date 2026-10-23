@@ -18,6 +18,12 @@ group = "com.bettercontent"
 version = property("mod_version") as String
 base { archivesName.set("better-wild-fruit-trees") }
 java { toolchain.languageVersion.set(JavaLanguageVersion.of(17)) }
+// Required observation hooks exist only on the native GameTest classpath, never ordinary launches/JARs.
+val nativeProbe = sourceSets.create("nativeProbe") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
+}
+configurations[nativeProbe.annotationProcessorConfigurationName].extendsFrom(configurations.annotationProcessor.get())
 val nativeAttempts = project.file("run-gametest/attempts").toPath()
 require(!Files.isSymbolicLink(nativeAttempts) && !Files.isSymbolicLink(nativeAttempts.parent)) { "Native attempt ancestry must not be a symlink" }
 Files.createDirectories(nativeAttempts)
@@ -41,6 +47,8 @@ minecraft {
         create("client")
         create("server") { arg("--nogui") }
         create("gameTestServer") {
+            mods.named("better_wild_fruit_trees") { source(nativeProbe) }
+            args("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json")
             workingDirectory(nativeAttempt)
             property("forge.enabledGameTestNamespaces", if (calibrationEnabled)
                 "better_wild_fruit_calibration" else "better_wild_fruit_trees")
@@ -101,6 +109,7 @@ dependencies {
 }
 mixin {
     add(sourceSets.main.get(), "better_wild_fruit_trees.refmap.json")
+    add(nativeProbe, "better_wild_fruit_trees.native-light.refmap.json")
     config("better_wild_fruit_trees.mixins.json")
 }
 tasks.withType<JavaCompile>().configureEach {
@@ -115,6 +124,26 @@ val prepareMixinResources by tasks.registering(Copy::class) {
     rename { "better_wild_fruit_trees.refmap.json" }
 }
 sourceSets.main { resources.srcDir(prepareMixinResources) }
+val prepareNativeProbeMixinResources by tasks.registering(Copy::class) {
+    dependsOn("compileNativeProbeJava")
+    from(layout.buildDirectory.file("tmp/compileNativeProbeJava/compileNativeProbeJava-refmap.json"))
+    into(layout.buildDirectory.dir("generated/nativeProbeMixinResources"))
+    rename { "better_wild_fruit_trees.native-light.refmap.json" }
+}
+nativeProbe.resources.srcDir(prepareNativeProbeMixinResources)
+val verifyNativeLightProbe by tasks.registering(Exec::class) {
+    dependsOn(nativeProbe.classesTaskName, "createSrgToMcp")
+    doFirst {
+        val classpath = configurations.compileClasspath.get().files
+        val forge = classpath.single { it.name == "forge-1.20.1-47.4.13_mapped_official_1.20.1.jar" }
+        val dt = classpath.single { it.name == "dynamic-trees-252818-7502488_mapped_official_1.20.1.jar" }
+        val processor = configurations.annotationProcessor.get().files.single { it.name == "mixin-0.8.5-processor.jar" }
+        commandLine("python3", "-B", "scripts/check_native_light_probe.py", forge.absolutePath, dt.absolutePath,
+            "build/createSrgToMcp/output.srg", processor.absolutePath,
+            "build/tmp/compileNativeProbeJava/compileNativeProbeJava-refmap.json", "build/classes/java/nativeProbe")
+    }
+}
+tasks.matching { it.name == "runGameTestServer" }.configureEach { dependsOn(verifyNativeLightProbe) }
 tasks.test { useJUnitPlatform() }
 // Diagnostic only: the default remains all32; admitted subsets require their own exact form records.
 // Actual namespaces, canonical ordinals, independent means and BOTH nonempty logs are fail-closed.
@@ -130,7 +159,9 @@ if (calibrationEnabled) {
     }
 }
 tasks.named<Jar>("jar") {
-    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**")
+    // MixinGradle may contribute registered-source-set refmaps to Jar specs independently
+    // of source-set outputs. Explicitly exclude the native-only namespace as well as classes.
+    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*")
     filesMatching("better_wild_fruit_trees.refmap.json") { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
     manifest { attributes("Implementation-Version" to project.version) }
     finalizedBy("reobfJar")
@@ -220,7 +251,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 val pinnedSdkArgs = listOf("--launchTarget", "forgegametestserveruserdev", "--gameDir", ".",
                     "--fml.forgeVersion", "47.4.13", "--fml.mcVersion", "1.20.1", "--fml.forgeGroup",
                     "net.minecraftforge", "--fml.mcpVersion", "20230612.114412")
-                check(effectiveArgs == pinnedSdkArgs + listOf("--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")) {
+                check(effectiveArgs == pinnedSdkArgs + listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json", "--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")) {
                     "Native effective SDK/authored args override: $effectiveArgs"
                 }
                 check(!nativeAttempt.resolve("world").exists() && !nativeAttempt.resolve("server.properties").exists()) { "Native input existed before own prepare" }

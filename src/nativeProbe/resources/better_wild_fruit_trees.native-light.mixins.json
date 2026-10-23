@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.bettercontent.betterwildfruittrees.gametest.nativeprobe",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "better_wild_fruit_trees.native-light.refmap.json",
+  "mixins": ["LeavesLightTraceMixin", "SkyStorageTraceMixin", "LightPublicationTraceMixin", "ChunkWriteTraceMixin"],
+  "injectors": {"defaultRequire": 1}
+}

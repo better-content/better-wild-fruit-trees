@@ -10,9 +10,14 @@ plugins {
     id("net.minecraftforge.gradle") version "6.0.54"
     id("org.spongepowered.mixin") version "0.7.38"
 }
+val lightQueueProofValue = providers.gradleProperty("lightQueueProof").orNull
+require(lightQueueProofValue == null || lightQueueProofValue in setOf("true", "false")) { "lightQueueProof must be true or false" }
+val lightQueueProofEnabled = lightQueueProofValue == "true"
+require(!lightQueueProofEnabled || listOf("optionalGrowthCalibration", "withoutTConFixture", "withoutArsFixture", "withoutWildAddonsFixture").none { project.hasProperty(it) }) { "Queue proof requires the unchanged default present native fixture" }
 val originalEventTraceValue = providers.gradleProperty("originalEventTrace").orNull
 require(originalEventTraceValue == null || originalEventTraceValue in setOf("true", "false")) { "originalEventTrace must be true or false" }
 val originalEventTrace = originalEventTraceValue == "true"
+require(!lightQueueProofEnabled || !originalEventTrace) { "Queue proof and original ordered growth profile are separate experiments" }
 val calibrationEnabled = project.hasProperty("optionalGrowthCalibration")
 val calibrationForms = providers.gradleProperty("optionalGrowthCalibrationForms").orNull ?: "all"
 require(calibrationForms in setOf("all", "ancient", "saguaro,saguaro_mega")) { "Unknown/empty/duplicate calibration profile" }
@@ -28,6 +33,12 @@ val nativeProbe = sourceSets.create("nativeProbe") {
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
 }
 configurations[nativeProbe.annotationProcessorConfigurationName].extendsFrom(configurations.annotationProcessor.get())
+// Absent entirely, including its Mixin registration, unless explicitly requested.
+val lightQueueProof = if (lightQueueProofEnabled) sourceSets.create("lightQueueProof") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
+} else null
+lightQueueProof?.let { configurations[it.annotationProcessorConfigurationName].extendsFrom(configurations.annotationProcessor.get()) }
 val nativeAttempts = project.file("run-gametest/attempts").toPath()
 require(!Files.isSymbolicLink(nativeAttempts) && !Files.isSymbolicLink(nativeAttempts.parent)) { "Native attempt ancestry must not be a symlink" }
 Files.createDirectories(nativeAttempts)
@@ -53,6 +64,10 @@ minecraft {
         create("gameTestServer") {
             mods.named("better_wild_fruit_trees") { source(nativeProbe) }
             args("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json")
+            if (lightQueueProofEnabled) {
+                mods.named("better_wild_fruit_trees") { source(lightQueueProof!!) }
+                property("better_wild_fruit_trees.lightQueueProof", "true")
+            }
             workingDirectory(nativeAttempt)
             if (originalEventTrace) property("better_wild_fruit_trees.originalEventTrace", "true")
             property("forge.enabledGameTestNamespaces", if (calibrationEnabled)
@@ -62,6 +77,7 @@ minecraft {
             property("better_wild_fruit_trees.fixture.ars_nouveau", (!project.hasProperty("withoutArsFixture")).toString())
             property("better_wild_fruit_trees.fixture.wild_addons", (!project.hasProperty("withoutWildAddonsFixture")).toString())
             arg("--nogui")
+            if (lightQueueProofEnabled) args("--mixin.config", "better_wild_fruit_trees.light-queue-proof.mixins.json")
         }
     }
 }
@@ -115,6 +131,7 @@ dependencies {
 mixin {
     add(sourceSets.main.get(), "better_wild_fruit_trees.refmap.json")
     add(nativeProbe, "better_wild_fruit_trees.native-light.refmap.json")
+    lightQueueProof?.let { add(it, "better_wild_fruit_trees.light-queue-proof.refmap.json") }
     config("better_wild_fruit_trees.mixins.json")
 }
 tasks.withType<JavaCompile>().configureEach {
@@ -166,7 +183,7 @@ if (calibrationEnabled) {
 tasks.named<Jar>("jar") {
     // MixinGradle may contribute registered-source-set refmaps to Jar specs independently
     // of source-set outputs. Explicitly exclude the native-only namespace as well as classes.
-    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*", "**/*original-events*", "**/*.wftord")
+    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*", "**/*original-events*", "**/*.wftord", "**/*light-queue-proof*", "**/*.wftq")
     filesMatching("better_wild_fruit_trees.refmap.json") { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
     manifest { attributes("Implementation-Version" to project.version) }
     finalizedBy("reobfJar")
@@ -226,7 +243,8 @@ val verifyScripts by tasks.registering(Exec::class) {
 }
 val verifyNativeLog by tasks.registering(Exec::class) {
     dependsOn("runGameTestServer")
-    commandLine("python3", "-B", "scripts/verify_artifact.py", "log", nativeAttempt.resolve("logs/latest.log").absolutePath)
+    if (lightQueueProofEnabled) commandLine("python3", "-B", "scripts/check_light_queue_proof.py", "log", nativeAttempt.resolve("logs/latest.log").absolutePath)
+    else commandLine("python3", "-B", "scripts/verify_artifact.py", "log", nativeAttempt.resolve("logs/latest.log").absolutePath)
 }
 val verifyCoconutMapping by tasks.registering {
     doLast {
@@ -248,6 +266,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             val native = run.name == "gameTestServer"
             val expectedNamespace = if (calibrationEnabled) "better_wild_fruit_calibration" else "better_wild_fruit_trees"
             check((run.properties["better_wild_fruit_trees.calibration.forms"] != null) == (native && calibrationEnabled)) { "Calibration property escaped native diagnostic RunConfig" }
+            check(run.properties["better_wild_fruit_trees.lightQueueProof"] == if (native && lightQueueProofEnabled) "true" else null) { "Queue proof flag escaped native RunConfig" }
             check(run.properties["better_wild_fruit_trees.originalEventTrace"] == if (native && originalEventTrace) "true" else null) { "Ordered observation flag escaped native RunConfig" }
             if (native) {
                 check(file(run.workingDirectory).canonicalFile == nativeAttempt.canonicalFile) { "Native RunConfig directory drift" }
@@ -257,7 +276,9 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 val pinnedSdkArgs = listOf("--launchTarget", "forgegametestserveruserdev", "--gameDir", ".",
                     "--fml.forgeVersion", "47.4.13", "--fml.mcVersion", "1.20.1", "--fml.forgeGroup",
                     "net.minecraftforge", "--fml.mcpVersion", "20230612.114412")
-                check(effectiveArgs == pinnedSdkArgs + listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json", "--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")) {
+                val originalExpectedArgs = pinnedSdkArgs + listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json", "--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")
+                val expectedArgs = if (lightQueueProofEnabled) originalExpectedArgs.dropLast(2) + listOf("--mixin.config", "better_wild_fruit_trees.light-queue-proof.mixins.json") + originalExpectedArgs.takeLast(2) else originalExpectedArgs
+                check(effectiveArgs == expectedArgs) {
                     "Native effective SDK/authored args override: $effectiveArgs"
                 }
                 check(!nativeAttempt.resolve("world").exists() && !nativeAttempt.resolve("server.properties").exists()) { "Native input existed before own prepare" }
@@ -272,7 +293,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 receipt.setProperty("actualRunConfigDirectory", file(run.workingDirectory).canonicalPath)
                 receipt.setProperty("actualNamespace", run.properties["forge.enabledGameTestNamespaces"].toString())
                 receipt.setProperty("actualArgs", run.args.joinToString(" "))
-                receipt.setProperty("profile", if (calibrationEnabled) calibrationForms else "main26")
+                receipt.setProperty("profile", if (lightQueueProofEnabled) "light-queue-proof-v1-required29" else if (calibrationEnabled) calibrationForms else "main26")
                 receipt.setProperty("worldAbsent", "true")
                 receipt.setProperty("propertiesAbsent", "true")
                 receipt.setProperty("authoredSeed", "8675309")
@@ -292,6 +313,47 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             } else check(file(run.workingDirectory).canonicalFile == file("run").canonicalFile) { "Ordinary RunConfig changed" }
         }
     }
+}
+if (lightQueueProof != null) {
+    val proofSet = lightQueueProof
+    val proofResources = tasks.register<Copy>("prepareLightQueueProofMixinResources") {
+        dependsOn("compileLightQueueProofJava")
+        from(layout.buildDirectory.file("tmp/compileLightQueueProofJava/compileLightQueueProofJava-refmap.json"))
+        into(layout.buildDirectory.dir("generated/lightQueueProofMixinResources"))
+        rename { "better_wild_fruit_trees.light-queue-proof.refmap.json" }
+    }
+    proofSet.resources.srcDir(proofResources)
+    val proofAbi = tasks.register<Exec>("verifyLightQueueProofAbi") {
+        dependsOn(proofSet.classesTaskName, "createSrgToMcp")
+        doFirst {
+            val forge = configurations.compileClasspath.get().files.single { it.name == "forge-1.20.1-47.4.13_mapped_official_1.20.1.jar" }
+            val processor = configurations.annotationProcessor.get().files.single { it.name == "mixin-0.8.5-processor.jar" }
+            commandLine("python3", "-B", "scripts/check_light_queue_proof.py", "sdk", forge.absolutePath, processor.absolutePath,
+                "build/createSrgToMcp/output.srg", "build/tmp/compileLightQueueProofJava/compileLightQueueProofJava-refmap.json", "build/classes/java/lightQueueProof")
+        }
+    }
+    val proofBindings = tasks.register("prepareLightQueueProofBindings") {
+        dependsOn(verifyCalibrationRunConfigGuard, proofAbi, nativeProbe.classesTaskName, sourceSets.main.get().classesTaskName)
+        doLast {
+            fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+            fun git(vararg args: String): String { val out = ByteArrayOutputStream(); exec { commandLine(listOf("git") + args); standardOutput = out }; return out.toString("UTF-8").trim() }
+            check(git("status", "--porcelain").isEmpty()) { "Queue proof requires clean committed Source" }
+            val lines = listOf("main" to sourceSets.main.get(), "nativeProbe" to nativeProbe, "lightQueueProof" to proofSet).flatMap { (name, set) ->
+                set.output.classesDirs.files.flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "class" }.map { cls -> "$name/${cls.relativeTo(root).invariantSeparatorsPath} ${sha(cls.readBytes())}" }.toList() }
+            }.sorted()
+            val manifest = (lines.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8)
+            Files.write(nativeAttempt.resolve("light-queue-proof-classes.sha256").toPath(), manifest, StandardOpenOption.CREATE_NEW)
+            val binding = Properties()
+            binding.setProperty("nonce", nativeAttemptId); binding.setProperty("attemptDirectory", nativeAttempt.canonicalPath)
+            binding.setProperty("profile", "light-queue-proof-v1-required29"); binding.setProperty("sourceCommit", git("rev-parse", "HEAD")); binding.setProperty("sourceDirty", "false")
+            binding.setProperty("classHashSetSha256", sha(manifest))
+            val forge = configurations.compileClasspath.get().files.single { it.name == "forge-1.20.1-47.4.13_mapped_official_1.20.1.jar" }
+            binding.setProperty("sdkSha256", sha(forge.readBytes()))
+            binding.setProperty("nativeInputReceiptSha256", sha(nativeAttempt.resolve("before-own-prepare.properties").readBytes()))
+            Files.newBufferedWriter(nativeAttempt.resolve("light-queue-proof-bindings.properties").toPath(), StandardOpenOption.CREATE_NEW).use { binding.store(it, "SOURCE mechanism experiment, not a fence or original growth qualification") }
+        }
+    }
+    tasks.matching { it.name == "runGameTestServer" }.configureEach { dependsOn(proofBindings) }
 }
 val prepareOriginalEventBindings by tasks.registering {
     dependsOn(verifyCalibrationRunConfigGuard, nativeProbe.classesTaskName, sourceSets.main.get().classesTaskName)

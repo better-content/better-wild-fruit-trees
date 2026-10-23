@@ -139,7 +139,7 @@ def check_log(text):
 def check_jar(archive):
     names = archive.namelist()
     assert len(names) == len(set(names)), "Duplicate archive entries"
-    assert not any("/gametest/" in name or name.startswith("gameteststructures/") or "native-light" in name or "original-events" in name or name.endswith(".wftord") for name in names), "Shipping test fixture"
+    assert not any("/gametest/" in name or name.startswith("gameteststructures/") or "native-light" in name or "original-events" in name or name.endswith(".wftord") or "light-queue-proof" in name or name.endswith(".wftq") for name in names), "Shipping test fixture"
     assert not any(name.startswith(("slimeknights/", "com/ferreusveritas/dynamictreesplus/", "xueluoanping/dtnatures_spirit/",
                                     "net/hibiscus/naturespirit/", "org/violetmoon/")) for name in names), "Bundling optional upstream implementation"
     assert "com/bettercontent/betterwildfruittrees/compat/TConstructAxes.class" in names, "Missing optional typed tier adapter"

@@ -222,7 +222,11 @@ class OptionalArchiveContractTest(unittest.TestCase):
         with self.assertRaises(AssertionError): self.check(entries)
 
     def test_fixture_or_optional_upstream_implementation_must_not_ship(self):
-        for path in ['original-events-bindings.properties', 'original-events-classes.sha256',
+        for path in ['light-queue-proof-bindings.properties', 'light-queue-proof-classes.sha256',
+                     'better_wild_fruit_trees.light-queue-proof.mixins.json', 'better_wild_fruit_trees.light-queue-proof.refmap.json',
+                     'light-queue-proof/pipeline-v1.wftq', 'misplaced.wftq',
+                     'com/bettercontent/betterwildfruittrees/gametest/queueproof/QueueProofLedger.class',
+                     'original-events-bindings.properties', 'original-events-classes.sha256',
                      'original-events/sample-0.wftord', 'misplaced.wftord',
                      'com/bettercontent/betterwildfruittrees/gametest/OrderedEvents.class',
                      'com/bettercontent/betterwildfruittrees/gametest/OrderedEvents$Scope.class',

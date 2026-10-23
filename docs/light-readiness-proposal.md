@@ -110,6 +110,18 @@ If a deterministic candidate falls outside existing references, retain that fail
 review; do not recalibrate/expand tolerance automatically. Initial-only and pulse-boundary
 readiness may be useful diagnostic arms, but are **not** determinism guarantees.
 
+## Separately authorized SOURCE queue mechanism v1 (still no fence admission)
+
+The later [light queue proof profile](light-queue-proof.md) implements a distinct, explicit
+`-PlightQueueProof=true` SOURCE-only mechanism experiment, not the barrier proposed above.
+It retains the original26 and adds exactly three structural cases with two observations each.
+Its conditional command/admission/batch/publication/ack provenance explicitly leaves global
+coverage incomplete. Native application/liveness are lead-owned and pending; no counter-zero,
+future acknowledgement or 29-case diagnostic completion admits a fixture repair. See that
+versioned document for mutation-route gaps, AP synthetic-member warnings, exact retained format
+and the strict future admission decision. The original growth protocol and this proposal's
+rejection of an unproved fence remain unchanged.
+
 ## Separate persimmon ownership
 
 Orange observations do not establish persimmon's cause. The pinned DT Fruits Delight

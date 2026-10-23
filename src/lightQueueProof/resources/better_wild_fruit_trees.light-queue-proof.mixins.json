@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.bettercontent.betterwildfruittrees.gametest.queueproof.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "better_wild_fruit_trees.light-queue-proof.refmap.json",
+  "mixins": ["ThreadedPipelineMixin", "MessageAccess", "SorterAdmissionMixin", "PublicationMixin", "ChunkLifecycleMixin", "TicketAccess", "TicketRemovalMixin", "TicketCallbackMixin", "MainCallbackMixin", "NotificationMixin"],
+  "injectors": {"defaultRequire": 1}
+}

@@ -53,6 +53,9 @@ class OriginalLightProbeTest(unittest.TestCase):
         adapter = (ROOT/'src/nativeProbe/java/com/bettercontent/betterwildfruittrees/gametest/NativeStateCodes.java').read_text()
         self.assertIn('@SubscribeEvent\n    public static void starting(ServerStartingEvent ignored)', adapter)
         self.assertIn('new StateCodebook.Builder<BlockState>(131072)', adapter)
+        self.assertLess(adapter.index('if (!selected(name)) continue;'), adapter.index('block.getStateDefinition().getPossibleStates()'))
+        self.assertIn('original-orange-blocks-v1', adapter)
+        self.assertIn('selectedBlockKeys=', adapter)
         hot = adapter.split('public static long code(BlockState state)', 1)[1]
         for forbidden in ('BuiltInRegistries', 'getValues(', 'getStateDefinition(', 'starting(', 'new ', 'System.out', 'synchronized'):
             self.assertNotIn(forbidden, hot)

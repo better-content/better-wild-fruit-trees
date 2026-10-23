@@ -97,8 +97,13 @@ these compact channels is a full positional light snapshot or collision-free equ
 
 A native-only `NativeStateCodes` subscriber builds its codebook at Forge `ServerStarting`.
 Pinned `GameTestServer.initServer` calls `handleServerStarting` after level loading and
-before tests are started later by `tickServer`. The adapter enumerates registered blocks'
-immutable `StateDefinition.getPossibleStates()` values, never world/position states. It
+before tests are started later by `tickServer`. Declared scope `original-orange-blocks-v1`
+selects **all `minecraft` blocks plus exactly** `dynamictrees:rooty_dirt`,
+`dynamictrees:oak_branch`, and `dtfruitsdelight:orange_leaves`. It selects registered block
+keys **before** calling `getStateDefinition().getPossibleStates()`, so unrelated palettes are
+never enumerated. Only selected blocks' globally interned immutable possible states are
+included, never world/position states. This scope is for the original orange fixture only;
+it does **not** claim to cover every block/state that any world or another tree may write. It
 stops after at most 131,072 admitted identities plus one excess detection. It retains only
 bounded, globally interned immutable BlockStates as Minecraft objects; the JDK ledger still
 retains **no Minecraft objects**. Registry/property access and SHA work occur only here,
@@ -116,10 +121,16 @@ identities never trigger registry/property queries or insertion. A frozen privat
 copy cannot be mutated by its builder, and lookup never calls state equality/property methods.
 
 The startup-only `ORIGINAL_STATE_CODEBOOK` marker records schema, entry count, completeness,
+declared scope version, sorted selected block keys, scope completeness,
 collision/invalid and excess counters, and a SHA-256 digest of the schema plus the sorted,
 length-prefixed distinct canonical strings. The digest is independent of registration order
 and opaque object identities. Repeated equivalent canonical strings share a code. Digest and
-counts are diagnostic domain provenance, not proof of measured world state. A startup adapter
+counts are diagnostic domain provenance, not proof of measured world state. All three exact
+native keys must be present for scope completeness; missing keys leave the whole lookup
+incomplete. The original 131,072-state budget, collision/unknown rules and sentinel behavior
+are unchanged. Any actually observed unregistered **or out-of-scope** write still produces
+UNKNOWN and marks that measured session canonical-incomplete; it is never silently admitted.
+A startup adapter
 failure emits `complete=false` without retaining the exception/server/event object.
 
 The existing chunk RETURN callback still records its original position/opaque identity
@@ -133,7 +144,8 @@ this channel remains an attempted-write RETURN trace, not proof of full realized
 `canonicalUnknown` counts writes with an unknown component. Session-level
 `canonicalIncomplete=true` is set if bootstrap was not complete before the scope or any
 unknown was encountered. Never interpret matching unknown/sentinel codes as state equality.
-Only matching schema and complete codebook/observations permit canonical cross-run comparison;
+Only matching canonical schema, declared scope version, selected keys/digest and complete
+codebook/observations permit canonical cross-run comparison;
 64-bit codes and rolling aggregate hashes still have finite collision risk. Incomplete canonical
 evidence does not erase the independently captured light/original channels or change native
 acceptance. Startup allocation and extra observations may affect later scheduling, so neither

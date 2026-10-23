@@ -43,6 +43,12 @@ public final class StateCodebookSelfTest {
         check(!cap.freeze().complete && cap.freeze().entries == 1 && cap.freeze().lookup(a) == StateCodebook.UNKNOWN, "cap concealed / unsafe partial lookup");
         check(!new StateCodebook.Builder<Object>(1).freeze().complete, "empty book complete");
 
+        for (String key : new String[] {"minecraft:air", "minecraft:stone", "minecraft:oak_log", "dynamictrees:rooty_dirt", "dynamictrees:oak_branch", "dtfruitsdelight:orange_leaves"})
+            check(NativeStateCodes.selected(key), "selected scope key rejected: " + key);
+        for (String key : new String[] {"minecraftish:stone", "other:minecraft", "dynamictrees:orange_leaves", "dtfruitsdelight:oak_branch", "dynamictrees:rooty_dirt_extra", "other:orange_leaves", "dtfruitsdelight:bayberry_leaves", "dynamictrees:birch_branch", "minecraft:", "minecraft:other:stone", "stone"})
+            check(!NativeStateCodes.selected(key), "out-of-scope key admitted: " + key);
+        check(!NativeStateCodes.selected(null), "missing key selected");
+
         var output = new ByteArrayOutputStream(); PrintStream prior = System.out;
         System.setOut(new PrintStream(output));
         try {
@@ -57,10 +63,21 @@ public final class StateCodebookSelfTest {
             check(output.size() == 0, "in-loop diagnostic IO"); OriginalLightTrace.finish();
             check(output.toString().contains("canonicalIncomplete=true"), "missing bootstrap not incomplete");
             output.reset();
-            BuiltInRegistries.BLOCK.add(new Block("fixture:requested", requested));
-            BuiltInRegistries.BLOCK.add(new Block("fixture:old", old));
+            BlockState outside = new BlockState();
+            var unrelated = new Block("unrelated:huge_palette", outside);
+            unrelated.failOnDefinition = true; // Negative: excluded block state enumeration must never occur.
+            BuiltInRegistries.BLOCK.add(unrelated);
+            BuiltInRegistries.BLOCK.add(new Block("dynamictrees:rooty_dirt", requested));
+            BuiltInRegistries.BLOCK.add(new Block("dynamictrees:oak_branch", old));
             NativeStateCodes.starting(new ServerStartingEvent());
-            check(output.toString().contains("ORIGINAL_STATE_CODEBOOK schema=original-state-v1 entries=2 complete=true"), "startup marker absent/incomplete");
+            check(output.toString().contains("scopeComplete=false") && NativeStateCodes.code(requested) == StateCodebook.UNKNOWN, "missing required selected key not incomplete");
+            output.reset();
+            BuiltInRegistries.BLOCK.add(new Block("dtfruitsdelight:orange_leaves", new BlockState()));
+            BuiltInRegistries.BLOCK.add(new Block("minecraft:stone", new BlockState()));
+            NativeStateCodes.starting(new ServerStartingEvent());
+            check(output.toString().contains("ORIGINAL_STATE_CODEBOOK schema=original-state-v1 entries=4 complete=true"), "startup marker absent/incomplete");
+            check(output.toString().contains("scope=original-orange-blocks-v1 scopeComplete=true") && output.toString().contains("selectedBlockKeys=[dtfruitsdelight:orange_leaves, dynamictrees:oak_branch, dynamictrees:rooty_dirt, minecraft:stone]"), "scope/key provenance missing");
+            check(!output.toString().contains("unrelated:huge_palette") && NativeStateCodes.code(outside) == StateCodebook.UNKNOWN, "out-of-scope state admitted");
             output.reset();
             int registryReads = BuiltInRegistries.BLOCK.lookups, propertyReads = BlockState.propertyReads;
             OriginalLightTrace.begin("orange", 1); OriginalLightTrace.pulse(1);
@@ -71,7 +88,7 @@ public final class StateCodebookSelfTest {
             check(NativeStateCodes.code(null) == 0, "null returned state treated as missing");
             output.reset();
             OriginalLightTrace.begin("orange", 2); OriginalLightTrace.pulse(1);
-            hook.invoke(chunk, new BlockPos(), new BlockState(), false, new CallbackInfoReturnable<BlockState>("test", false, null));
+            hook.invoke(chunk, new BlockPos(), outside, false, new CallbackInfoReturnable<BlockState>("test", false, null));
             OriginalLightTrace.finish();
             check(output.toString().contains("canonicalUnknown=1 canonicalIncomplete=true"), "unregistered identity not incomplete");
             check(BuiltInRegistries.BLOCK.lookups == registryReads && BlockState.propertyReads == propertyReads, "unknown lookup became lazy");

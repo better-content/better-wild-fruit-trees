@@ -162,6 +162,54 @@ class CalibrationProfiles(unittest.TestCase):
         self.assertIn('actualFixture.$name', build)
         self.assertIn('dependsOn("reobfJar", verifyGrowthReferences)', build)
 
+    def test_acceptance_probe_owns_native_ticking_and_original_helper_deadline(self):
+        source = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OptionalGrowthCalibration.java').read_text()
+        consumer = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OptionalTreeGameTests.java').read_text()
+        births = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/CalibrationBirths.java').read_text()
+        self.assertIn('@GameTest(template = "empty", timeoutTicks = 2000)\n    public static void optionalNativePulseCadenceUsesEachMeasuredReference', consumer)
+        self.assertIn('h.getTick() < 2000', source)
+        self.assertIn('CalibrationBirths.armTicks(h, new BlockPos(-160, 160, 48))', source)
+        self.assertIn('CalibrationBirths.releaseTicks(h, root)', source)
+        self.assertIn('!CalibrationBirths.ticking(h, root) || !CalibrationBirths.quiescent(h, root)', source)
+        for token in ('addRegionTicket(TICKETS, chunk, 2, chunk)', 'removeRegionTicket(TICKETS, chunk, 2, chunk)',
+                      'isPositionEntityTicking(', 'ChunkPos::toLong), 2000)'):
+            self.assertIn(token, births)
+        # Scheduling model only, not native acceptance: all32 already needs 193 ticks
+        # even with immediate retirement (32 warmups and 33 pre-sample retirement yields).
+        minimum = 32 * 5 + 33
+        self.assertEqual(minimum, 193)
+        self.assertGreater(minimum + 8, 200)
+        # A larger timeout alone never schedules a loaded-but-not-ticking VOID entity.
+        for deadline in (200, 2000):
+            live = True
+            for _ in range(deadline):
+                ticking = False
+                if ticking:
+                    live = False
+            self.assertTrue(live)
+
+    def test_cactus_fixture_hash_eligibility_is_bounded_and_not_rng(self):
+        # Pinned CoordUtils hash mode 0 uses 4111/271/3067, shifts right once,
+        # then xors coordXor. Only these low bits affect native shouldPlace's &6.
+        # Exhaust all root residues and relevant salt bits; do not tune to one arena.
+        def eligible(x, y, z, salt):
+            return (((x * 4111 ^ y * 271 ^ z * 3067) >> 1) ^ salt) & 6 == 0
+        for x in range(16):
+            for y in range(16):
+                for z in range(16):
+                    for salt in range(0, 8, 2):
+                        self.assertTrue(any(eligible(x+dx*d, y+h+1, z+dz*d, salt)
+                            for dx, dz in ((0, 1), (-1, 0), (0, -1), (1, 0))
+                            for d in range(1, 4) for h in range(2, 5)))
+        self.assertTrue(any(not eligible(x, 3, 0, 0) for x in range(16)))
+        fixture = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/CactusNativeFixture.java').read_text()
+        self.assertIn('CactusBranchBlock.CactusThickness.BRANCH', fixture)
+        self.assertIn('CoordUtils.coordHashCode(tip.above(), 0) & 6', fixture)
+        consumer = (ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OptionalTreeGameTests.java').read_text()
+        for token in ('CactusNativeFixture.fruitingArm(level, pos, tree)', 'Invalid native geometry spent allowance',
+                      'Empty allowance placed native product', 'Native placements and allowance debits disagree'):
+            self.assertIn(token, consumer)
+
     def test_release_binding_is_unused_and_calibration_remains_isolated(self):
         build = (ROOT/'build.gradle.kts').read_text()
         self.assertEqual(1, build.count('System.getenv("BC_CUSTOM_MOD_JAR_DIR")'))

@@ -226,7 +226,9 @@ public final class OptionalTreeGameTests {
             h.succeed();
         } finally { clear(h, pos); }
     }
-    @GameTest(template = "empty", timeoutTicks = 200)
+    // Includes the same all32 probe and asynchronous native retirement as the 2000-tick
+    // diagnostic. Its 32*(1+5) scheduled ticks alone consume 192 ticks before retirement.
+    @GameTest(template = "empty", timeoutTicks = 2000)
     public static void optionalNativePulseCadenceUsesEachMeasuredReference(GameTestHelper h) {
         var level = h.getLevel(); var pos = h.absolutePos(new BlockPos(4, 1, 4));
         var forms = new ArrayList<>(present(h));
@@ -256,6 +258,12 @@ public final class OptionalTreeGameTests {
             if (forms.isEmpty()) h.succeed(); else OptionalGrowthCalibration.verifyWoodReferences(h);
         } finally { clear(h, pos); }
     }
+    private static int countProducts(GameTestHelper h, BlockPos root, Block block) {
+        int count = 0;
+        for (var pos : BlockPos.betweenClosed(root.offset(-3, 0, -3), root.offset(3, 5, 3)))
+            if (h.getLevel().getBlockState(pos).is(block)) count++;
+        return count;
+    }
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void nativeCactusAndPalmOverrideSitesUseRootAllowance(GameTestHelper h) {
         var level = h.getLevel(); var pos = h.absolutePos(new BlockPos(4, 1, 4));
@@ -264,17 +272,41 @@ public final class OptionalTreeGameTests {
             for (String id : List.of(WildFruitPolicy.SAGUARO, WildFruitPolicy.COCONUT)) {
                 if (!available.contains(id)) continue;
                 root(h, id, pos); var tree = species(id);
-                if (id.equals(WildFruitPolicy.COCONUT)) level.setBlock(pos.above(2), tree.getLeavesProperties().getDynamicLeavesState(4), 2);
                 var feature = tree.getGenFeatures().stream().filter(c -> c.getGenFeature().getRegistryName().getPath().equals(
                     id.equals(WildFruitPolicy.SAGUARO) ? "cactus_fruit" : "palm_fruit")).findFirst().orElseThrow();
                 var record = RootLedger.get(level).record(level, pos);
+                var productBlock = id.equals(WildFruitPolicy.SAGUARO)
+                    ? Fruit.REGISTRY.get(new ResourceLocation(WildFruitPolicy.policy(id).harvest())).getBlock()
+                    : Pod.REGISTRY.get(new ResourceLocation(WildFruitPolicy.policy(id).harvest())).getBlock();
+                // Negative control: stocked roots must not bypass native placement vetoes.
+                // Saguaro has no BRANCH arm; palm's four potential pod sites are obstructed.
+                if (id.equals(WildFruitPolicy.COCONUT))
+                    for (var direction : com.ferreusveritas.dynamictrees.util.CoordUtils.HORIZONTALS)
+                        level.setBlock(pos.above(2).relative(direction), Blocks.STONE.defaultBlockState(), 2);
+                record.credit = ProductionRates.MAX_CREDIT;
+                level.random.setSeed(67891);
+                for (int i = 0; i < 128; i++) feature.generate(GenFeature.Type.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
+                h.assertTrue(record.credit == ProductionRates.MAX_CREDIT, "Invalid native geometry spent allowance " + id);
+                BlockPos fruitSite;
+                if (id.equals(WildFruitPolicy.SAGUARO)) fruitSite = CactusNativeFixture.fruitingArm(level, pos, tree);
+                else {
+                    fruitSite = pos.above(2);
+                    for (var direction : com.ferreusveritas.dynamictrees.util.CoordUtils.HORIZONTALS)
+                        level.setBlock(fruitSite.relative(direction), Blocks.AIR.defaultBlockState(), 2);
+                    level.setBlock(fruitSite, tree.getLeavesProperties().getDynamicLeavesState(4), 2);
+                }
+                record.credit = 0;
                 level.random.setSeed(67891);
                 for (int i = 0; i < 128; i++) feature.generate(GenFeature.Type.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
                 h.assertTrue(record.credit == 0, "Empty optional allowance changed");
+                h.assertTrue(countProducts(h, pos, productBlock) == 0, "Empty allowance placed native product " + id);
                 record.credit = ProductionRates.MAX_CREDIT;
                 for (int i = 0; i < 128; i++) feature.generate(GenFeature.Type.POST_GROW, new PostGrowContext(level, pos, tree, pos.above(), 0, true));
                 h.assertTrue(record.credit < ProductionRates.MAX_CREDIT && record.credit >= 0, "Real native override bypassed success accounting " + id);
                 h.assertTrue((ProductionRates.MAX_CREDIT - record.credit) % ProductionRates.FRUIT_INTERVAL == 0, "Fractional replacement debit");
+                h.assertTrue(countProducts(h, pos, productBlock) == (ProductionRates.MAX_CREDIT - record.credit) / ProductionRates.FRUIT_INTERVAL,
+                    "Native placements and allowance debits disagree " + id);
+                if (id.equals(WildFruitPolicy.SAGUARO)) h.assertTrue(level.getBlockState(fruitSite).is(productBlock), "Native arm fruit missing");
                 clear(h, pos);
             }
             h.succeed();

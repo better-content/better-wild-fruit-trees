@@ -40,10 +40,15 @@ public final class OptionalGrowthCalibration {
         // The diagnostic applies native growth pulses explicitly. Do not allow incidental root random ticks
         // to invoke the intentionally blocked, not-yet-calibrated normal rate getter.
         h.getLevel().getGameRules().getRule(GameRules.RULE_RANDOMTICKING).set(0, h.getLevel().getServer());
+        CalibrationBirths.armTicks(h, new BlockPos(48, 160, 48));
         probe(h, plan, 0, false);
     }
     /** Acceptance ALWAYS repeats all four original endpoints; diagnostic selection never weakens it. */
-    static void verifyWoodReferences(GameTestHelper h) { SUMS.clear(); probe(h, CalibrationPlan.select("all"), 0, true); }
+    static void verifyWoodReferences(GameTestHelper h) {
+        SUMS.clear();
+        CalibrationBirths.armTicks(h, new BlockPos(-160, 160, 48));
+        probe(h, CalibrationPlan.select("all"), 0, true);
+    }
     private static void probe(GameTestHelper h, CalibrationPlan plan, int index, boolean verifyWood) {
         // A separate acceptance plot avoids the established thirteen-species fixture's (48,160,48).
         var level = h.getLevel(); var root = new BlockPos(verifyWood ? -160 : 48, 160, 48);
@@ -56,6 +61,7 @@ public final class OptionalGrowthCalibration {
         h.runAfterDelay(1, () -> awaitRetirement(h, root, () -> {
             if (index == plan.samples().size()) {
                 if (!verifyWood) NativeCalibrationMarkers.emit("OPTIONAL_GROWTH_DIAGNOSTIC_ONLY endpoint=" + CactusArchitecture.VERSION + "; measurements require source review before references are filled");
+                CalibrationBirths.releaseTicks(h, root);
                 h.succeed(); return;
             }
             startSample(h, plan, index, verifyWood, root);
@@ -64,7 +70,8 @@ public final class OptionalGrowthCalibration {
     private static void awaitRetirement(GameTestHelper h, BlockPos root, Runnable ready) {
         h.assertTrue(h.getTick() < 2000, "Fixture retirement exceeded original GameTest deadline");
         h.assertTrue(h.getLevel().isEmptyBlock(root), "Fixture retirement root unexpectedly reappeared");
-        if (!CalibrationBirths.quiescent(h, root)) {
+        // Region tickets become entity-ticking asynchronously; hasChunkAt alone is not enough.
+        if (!CalibrationBirths.ticking(h, root) || !CalibrationBirths.quiescent(h, root)) {
             h.runAfterDelay(1, () -> awaitRetirement(h, root, ready));
             return;
         }

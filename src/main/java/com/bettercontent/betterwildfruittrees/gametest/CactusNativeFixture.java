@@ -34,6 +34,27 @@ final class CactusNativeFixture {
         return CactusArchitecture.reached(nodes, mega, proven, stop);
     }
 
+    /** One connected upturned native BRANCH arm with a hash-eligible fruit site.
+     * A bare TRUNK is deliberately ineligible in CactusFruitGenFeature.shouldPlace;
+     * its deterministic coordinate veto cannot be overcome by retrying RNG. */
+    static BlockPos fruitingArm(Level level, BlockPos root, Species species) {
+        var branch = species.getFamily().getBranch().orElseThrow();
+        for (var direction : com.ferreusveritas.dynamictrees.util.CoordUtils.HORIZONTALS) {
+            for (int distance = 1; distance <= 3; distance++) for (int height = 2; height <= 4; height++) {
+                var tip = root.relative(direction, distance).above(height);
+                if ((com.ferreusveritas.dynamictrees.util.CoordUtils.coordHashCode(tip.above(), 0) & 6) != 0) continue;
+                var state = branch.defaultBlockState().setValue(CactusBranchBlock.TRUNK_TYPE,
+                    CactusBranchBlock.CactusThickness.BRANCH);
+                for (int step = 1; step <= distance; step++)
+                    level.setBlock(root.relative(direction, step).above(), state.setValue(CactusBranchBlock.ORIGIN, direction.getOpposite()), 2);
+                for (int y = 2; y <= height; y++)
+                    level.setBlock(root.relative(direction, distance).above(y), state.setValue(CactusBranchBlock.ORIGIN, net.minecraft.core.Direction.DOWN), 2);
+                return tip.above();
+            }
+        }
+        throw new IllegalStateException("No hash-eligible native cactus fruit site in bounded fixture");
+    }
+
     /** Public construction primitives matching the pinned cactus fresh initializer, not woody radius one. */
     static void fresh(Level level, BlockPos sapling, Species source) {
         var cactus = (CactusSpecies)source;

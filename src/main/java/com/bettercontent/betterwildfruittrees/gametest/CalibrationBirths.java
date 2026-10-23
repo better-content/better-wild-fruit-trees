@@ -18,6 +18,11 @@ import net.minecraftforge.fml.common.Mod;
 public final class CalibrationBirths {
     private static final int ROOT_X = scopeRoot();
     private static final CalibrationBirthLedger LEDGER = new CalibrationBirthLedger();
+    // Loaded block data is insufficient: the native VOID entity must get its real server tick.
+    // Nonpersistent region tickets expire even if an assertion/timeout prevents normal release.
+    private static final net.minecraft.server.level.TicketType<net.minecraft.world.level.ChunkPos> TICKETS =
+        net.minecraft.server.level.TicketType.create("wild_fruit_calibration",
+            java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong), 2000);
     private CalibrationBirths() {}
     private static int scopeRoot() {
         if (!Boolean.getBoolean("forge.gameTestServer")
@@ -83,6 +88,24 @@ public final class CalibrationBirths {
         h.assertTrue(ROOT_X == root.getX() && root.getY() == 160 && root.getZ() == 48,
             "Fixture birth scope not armed for original plot");
         h.assertTrue(LEDGER.levelReady(), "Fixture early observer/level lifecycle missing or failed: " + LEDGER.failure());
+    }
+    private static void plotChunks(BlockPos root, java.util.function.Consumer<net.minecraft.world.level.ChunkPos> action) {
+        for (int x = (root.getX() - 44) >> 4; x <= (root.getX() + 44) >> 4; x++)
+            for (int z = (root.getZ() - 44) >> 4; z <= (root.getZ() + 44) >> 4; z++)
+                action.accept(new net.minecraft.world.level.ChunkPos(x, z));
+    }
+    static void armTicks(GameTestHelper h, BlockPos root) {
+        assertScope(h, root);
+        plotChunks(root, chunk -> h.getLevel().getChunkSource().addRegionTicket(TICKETS, chunk, 2, chunk));
+    }
+    static void releaseTicks(GameTestHelper h, BlockPos root) {
+        plotChunks(root, chunk -> h.getLevel().getChunkSource().removeRegionTicket(TICKETS, chunk, 2, chunk));
+    }
+    static boolean ticking(GameTestHelper h, BlockPos root) {
+        boolean[] ready = {true};
+        plotChunks(root, chunk -> ready[0] &= h.getLevel().isPositionEntityTicking(
+            new BlockPos(chunk.getMiddleBlockX(), root.getY(), chunk.getMiddleBlockZ())));
+        return ready[0];
     }
     static boolean quiescent(GameTestHelper h, BlockPos root) {
         assertScope(h, root);

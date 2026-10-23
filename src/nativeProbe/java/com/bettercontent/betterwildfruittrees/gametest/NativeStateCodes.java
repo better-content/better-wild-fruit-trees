@@ -41,6 +41,7 @@ public final class NativeStateCodes {
             boolean complete = frozen.complete && scopeComplete;
             book = complete ? frozen : null;
             OriginalLightTrace.stateCodesReady(complete);
+            configureEvents(frozen, complete);
             System.out.println("ORIGINAL_STATE_CODEBOOK schema=" + StateCodebook.SCHEMA + " entries=" + frozen.entries
                 + " complete=" + complete + " scope=" + SCOPE + " scopeComplete=" + scopeComplete
                 + " selectedBlockKeys=" + selectedKeys + " collisionsOrInvalid=" + frozen.collisions + " excess=" + frozen.excess
@@ -50,6 +51,19 @@ public final class NativeStateCodes {
             OriginalLightTrace.stateCodesReady(false);
             System.out.println("ORIGINAL_STATE_CODEBOOK schema=" + StateCodebook.SCHEMA + " scope=" + SCOPE + " selectedBlockKeys=unavailable digest=unavailable complete=false reason=" + incomplete.getClass().getName());
         }
+    }
+    private static void configureEvents(StateCodebook<BlockState> frozen, boolean complete) {
+        if (!Boolean.getBoolean("better_wild_fruit_trees.originalEventTrace")) return;
+        var properties = new java.util.Properties();
+        var attempt = java.nio.file.Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        try (var input = java.nio.file.Files.newInputStream(attempt.resolve("original-events-bindings.properties"))) {
+            properties.load(input);
+        } catch (java.io.IOException | RuntimeException missing) { properties.setProperty("bindingError", missing.getClass().getName()); }
+        properties.setProperty("dictSchema", StateCodebook.SCHEMA);
+        properties.setProperty("dictScope", SCOPE);
+        properties.setProperty("dictDigest", frozen.digest);
+        properties.setProperty("dictComplete", Boolean.toString(complete));
+        OrderedEvents.configure(true, attempt.resolve("original-events"), properties);
     }
     static boolean selected(String key) {
         if (key == null) return false;

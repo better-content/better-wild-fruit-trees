@@ -151,6 +151,90 @@ evidence does not erase the independently captured light/original channels or ch
 acceptance. Startup allocation and extra observations may affect later scheduling, so neither
 this refinement nor any passing retry proves the historical cause of orange drift.
 
+## Opt-in full ordered events (`-PoriginalEventTrace=true`)
+
+Default is **false**. Only the source-native `gameTestServer` RunConfig receives
+`better_wild_fruit_trees.originalEventTrace=true`; ordinary client/server runs do not.
+The RunConfig guard rejects escape. With false, no ordered Scope/32-MiB arrays, directory,
+class binding files or event-file I/O are created. Existing five aggregate channels remain.
+The four original fixture observation lines and whole stripped-file SHA remain unchanged.
+
+The SAME four mixin types now include a required `LevelChunk.setBlockState` **HEAD**
+(require/expect/allow 1), retaining all four original RETURN callbacks. HEAD records request
+position/canonical state **before** original mutation/nested light calls; paired RETURN
+records the actual old-state result, including null. A later RETURN alone can never prove
+light-before-write. HEAD is request intent, not an exact physical storage-mutation timestamp.
+Existing exact-once leaf-query redirects emit BEGIN/RETURN around the original invocation;
+exceptions are not wrapped/caught/replaced by those redirects. A bounded combined call-ID /
+parent-ID stack pairs nested query/write activity. Raw SKY records carry that active context.
+
+`OrderedEvents` retains at most 524,288 fixed eight-long owner records (32 MiB), a 256-entry
+context stack, and a separate 4,096-slot primitive worker buffer with atomic reservation /
+release-commit. There is no per-record object allocation, native query, random draw, registry
+lookup, logger/file I/O, wait, monitor or readiness barrier added by the ordered ledger in
+measured callbacks. Canonical HEAD lookup uses the already frozen identity codebook only.
+Existing aggregate/framework bookkeeping is retained, not replaced. Publication callbacks
+capture their originating aggregate-session token so a delayed old callback cannot be
+attributed to a later sample. Detachment takes no worker barrier; uncommitted slots, observed
+reservation races, overflow, dangling/unpaired contexts, UNKNOWN or incomplete aggregates /
+bindings make the diagnostic incomplete, never change gameplay or acceptance. Unseen late
+reservations and post-PUTFIELD callback gaps remain possible; worker sequence/version is
+**not** an exact map-generation order. Identity hashes can collide.
+
+After compilation and before native execution, `prepareOriginalEventBindings` writes, only
+when opted in, CREATE_NEW class-hash manifest and binding properties into the actual admitted
+UUID working directory. They bind nonce, profile/fixture choices, clean source commit,
+SHA-256 of sorted main + nativeProbe class hashes, and the existing before-own-prepare native
+input receipt. Startup adds exact dictionary schema/scope/digest/completeness. Missing/malformed
+bindings are diagnostic-incomplete, not permission to bypass any native gate.
+
+Only after scope detachment, binary files are written with CREATE_NEW beneath that directory's
+`original-events/sample-N.wftord`. Existing files are never replaced; failures retain partial
+files and emit a brief incomplete receipt. Observation/flush failures cannot replace a pending
+measurement Throwable; original gameplay invocations are never inside this diagnostic catch.
+Successful receipts contain path, whole-file SHA-256, record counts, incomplete status and
+`scopeOutcome=UNPROVEN`. The file contains magic/version, bounded properties header, owner /
+worker counts, full primitive records, worker commit markers, and trailing SHA-256 of the
+entire preceding payload. Buffers, hashing and buffered binary I/O happen post-scope only.
+
+Owner rows are `(kind,pulse,packedPos,result,requested,returned,callID,parentID)`; for SKY,
+fields `requested/returned` instead hold opaque receiver identity and packed before/after
+observed versions. Kinds are SKY=1, SEE_BEGIN=2, SEE_RETURN=3, BRIGHT_BEGIN=4,
+BRIGHT_RETURN=5, ADEQUATE=6, WRITE_HEAD=7, WRITE_RETURN=8, STOP=9. Worker rows retain
+observed pulse/identity/version/owner-cursor snapshot with a separate commit marker. Semantic
+cross-run prefix comparison excludes SKY's opaque identity/version fields, not actual results.
+
+**Balanced STOP does not prove measurement completion.** The unchanged finish call lives in
+finally and has no access to an escaping Throwable. Thus every scope's outcome is UNPROVEN
+until offline validation finds exactly one matching unchanged post-assert
+`GROWTH_SAMPLE orange seed=N pulses=P` in a supplied retained native log whose expected
+SHA-256 is explicitly provided. A missing marker/incorrect pulse or log hash is inconclusive,
+including exceptions after otherwise balanced hooks. This completion evidence does not waive
+persimmon/bayberry/other native failures or imply overall exact-26 acceptance.
+
+The direct JDK comparator is `scripts/OriginalEventCompare.java`. Compile it alongside
+`src/main/java/com/bettercontent/betterwildfruittrees/gametest/OrderedEvents.java` into a new
+retained, task-owned output directory (no Minecraft/Gradle required), then run:
+
+```text
+java -cp <classes> com.bettercontent.betterwildfruittrees.gametest.OriginalEventCompare \
+  <nonce1>/original-events/sample-N.wftord <retained-log1> <expected-log1-sha256> \
+  <nonce2>/original-events/sample-N.wftord <retained-log2> <expected-log2-sha256>
+```
+
+It checks payload SHA/length/structure, paired nesting/order, dictionary/class/source/profile
+bindings, actual nonce-directory receipts, and post-assert outcomes before comparing complete
+semantic prefixes. Kind/position/request-first changes, an in-flight write, missing evidence,
+overflow, or a light value change without matching adequacy/next-request change are
+inconclusive. Same-position query-result divergence before any differing write HEAD, then a
+corresponding adequacy change followed by different next write HEAD, is labelled **mechanism
+support, NOT historical cause**. No extra RNG observer or protocol fix is introduced.
+
+Observation allocation, atomic traffic and post-scope flushing **can perturb scheduling**.
+Even complete ordered evidence does not prove stability or the historical cause of drift.
+Every ordered class/resource/binding/payload is excluded from runtime archives, with negative
+artifact controls; no activation, deployment, acceptance relaxation or cleanup is authorized.
+
 ## Controls and remaining acceptance
 
 The native-only `verifyNativeLightProbe` dependency validates pinned archives, original

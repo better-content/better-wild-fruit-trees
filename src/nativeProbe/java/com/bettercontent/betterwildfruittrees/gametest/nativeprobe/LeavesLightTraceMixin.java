@@ -1,6 +1,7 @@
 package com.bettercontent.betterwildfruittrees.gametest.nativeprobe;
 
 import com.bettercontent.betterwildfruittrees.gametest.OriginalLightTrace;
+import com.bettercontent.betterwildfruittrees.gametest.OrderedEvents;
 import com.ferreusveritas.dynamictrees.block.leaves.DynamicLeavesBlock;
 import com.ferreusveritas.dynamictrees.block.leaves.LeavesProperties;
 import net.minecraft.core.BlockPos;
@@ -19,14 +20,18 @@ public abstract class LeavesLightTraceMixin {
     @Redirect(method = "hasAdequateLight", remap = false, at = @At(value = "INVOKE", remap = true, target = "Lnet/minecraft/world/level/LevelAccessor;canSeeSkyFromBelowWater(Lnet/minecraft/core/BlockPos;)Z"), require = 1, expect = 1, allow = 1)
     private boolean trace$canSee(LevelAccessor level, BlockPos pos) {
         if (!OriginalLightTrace.ownerActive()) return level.canSeeSkyFromBelowWater(pos);
+        if (OrderedEvents.ownerActive()) OrderedEvents.queryBegin(false, pos.asLong());
         boolean result = level.canSeeSkyFromBelowWater(pos);
+        if (OrderedEvents.ownerActive()) OrderedEvents.queryEnd(false, pos.asLong(), result ? 1 : 0);
         OriginalLightTrace.light(OriginalLightTrace.CAN_SEE, pos.asLong(), result ? 1 : 0);
         return result;
     }
     @Redirect(method = "hasAdequateLight", remap = false, at = @At(value = "INVOKE", remap = true, target = "Lnet/minecraft/world/level/LevelAccessor;getBrightness(Lnet/minecraft/world/level/LightLayer;Lnet/minecraft/core/BlockPos;)I"), require = 1, expect = 1, allow = 1)
     private int trace$brightness(LevelAccessor level, LightLayer layer, BlockPos pos) {
         if (!OriginalLightTrace.ownerActive()) return level.getBrightness(layer, pos);
+        if (OrderedEvents.ownerActive()) OrderedEvents.queryBegin(true, pos.asLong());
         int result = level.getBrightness(layer, pos);
+        if (OrderedEvents.ownerActive()) OrderedEvents.queryEnd(true, pos.asLong(), result);
         OriginalLightTrace.light(OriginalLightTrace.BRIGHTNESS, pos.asLong(), result);
         return result;
     }

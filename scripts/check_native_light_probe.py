@@ -46,6 +46,7 @@ def native_abi(forge, dt, mcp):
     assert sky.count('ireturn') == 1 and 'Method getLightValue:(JZ)I' in sky, 'Skylight entrypoint drift'
     chunk = method(forge, 'net.minecraft.world.level.chunk.LevelChunk', 'BlockState setBlockState(')
     assert chunk.count('areturn') == 4, 'Original chunk write return site drift'
+    assert chunk.count('Code:\n       0:') == 1, 'Original chunk write entrypoint drift'
     mapping = Path(mcp).read_text()
     for name, descriptor, srg in MAP:
         assert f'MD: {srg} {descriptor} {name} {descriptor}' in mapping, 'Pinned MCP/SRG method drift'
@@ -69,7 +70,7 @@ def native_abi(forge, dt, mcp):
 def check_required_annotations(classes):
     counts = {'LeavesLightTraceMixin': {'trace$canSee': 1, 'trace$brightness': 1, 'trace$adequate': 3},
               'SkyStorageTraceMixin': {'trace$enter': 1, 'trace$return': 1},
-              'LightPublicationTraceMixin': {'trace$published': 1}, 'ChunkWriteTraceMixin': {'trace$write': 4}}
+              'LightPublicationTraceMixin': {'trace$published': 1}, 'ChunkWriteTraceMixin': {'trace$writeHead': 1, 'trace$write': 4}}
     for cls, handlers in counts.items():
         info = class_info((Path(classes)/(PACKAGE+cls+'.class')).read_bytes())
         assert info['owner'] == PACKAGE + cls, 'Wrong observation class'
@@ -88,6 +89,9 @@ def check_required_annotations(classes):
                 assert not values.get('cancellable', False), 'Observation must never cancel'
                 found[name] = values
         assert set(found) == set(handlers), 'Missing required observation hook'
+        if cls == 'ChunkWriteTraceMixin':
+            assert found['trace$writeHead']['at'][0][1]['value'] == 'HEAD', 'Write request must precede original mutation/nested calls'
+            assert found['trace$write']['at'][0][1]['value'] == 'RETURN', 'Preserve four original write RETURN sites'
         if cls == 'LightPublicationTraceMixin':
             at = found['trace$published']['at'][0][1]
             assert at['value'] == 'FIELD' and at['opcode'] == 181, 'Not observing original PUTFIELD'
@@ -191,7 +195,7 @@ def controls(processor=None):
         write('org.spongepowered.asm.mixin.injection.callback.CallbackInfo', 'public class CallbackInfo {}')
         write('org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable', 'public class CallbackInfoReturnable<T> extends CallbackInfo {private final T value; public CallbackInfoReturnable(String name, boolean cancellable, T v){value=v;} public T getReturnValue(){ return value; } }')
     sources += sorted((ROOT/'src/nativeProbe/java').rglob('*.java'))
-    sources += [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java', ROOT/'scripts/NativeLightTraceSelfTest.java', ROOT/'scripts/StateCodebookSelfTest.java']
+    sources += [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java', ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OrderedEvents.java', ROOT/'scripts/NativeLightTraceSelfTest.java', ROOT/'scripts/StateCodebookSelfTest.java']
     classes = out/'classes'
     classes.mkdir()
     command = ['javac', '--release', '17', '-d', str(classes)]
@@ -210,7 +214,7 @@ def controls(processor=None):
     check_codebook_subscriber(classes)
     runtime = str(classes) + (':'+str(processor) if processor else '')
     for name in ('NativeLightTraceSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.StateCodebookSelfTest'):
-        result = subprocess.run(['java', '-cp', runtime, name], capture_output=True, text=True, timeout=15)
+        result = subprocess.run(['java', '-cp', runtime, name, str(out)], capture_output=True, text=True, timeout=15)
         (out/(name.rsplit('.', 1)[-1]+'.log')).write_text(result.stdout+result.stderr)
         assert result.returncode == 0, result.stderr
     if processor:

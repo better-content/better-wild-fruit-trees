@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
@@ -9,6 +10,9 @@ plugins {
     id("net.minecraftforge.gradle") version "6.0.54"
     id("org.spongepowered.mixin") version "0.7.38"
 }
+val originalEventTraceValue = providers.gradleProperty("originalEventTrace").orNull
+require(originalEventTraceValue == null || originalEventTraceValue in setOf("true", "false")) { "originalEventTrace must be true or false" }
+val originalEventTrace = originalEventTraceValue == "true"
 val calibrationEnabled = project.hasProperty("optionalGrowthCalibration")
 val calibrationForms = providers.gradleProperty("optionalGrowthCalibrationForms").orNull ?: "all"
 require(calibrationForms in setOf("all", "ancient", "saguaro,saguaro_mega")) { "Unknown/empty/duplicate calibration profile" }
@@ -50,6 +54,7 @@ minecraft {
             mods.named("better_wild_fruit_trees") { source(nativeProbe) }
             args("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json")
             workingDirectory(nativeAttempt)
+            if (originalEventTrace) property("better_wild_fruit_trees.originalEventTrace", "true")
             property("forge.enabledGameTestNamespaces", if (calibrationEnabled)
                 "better_wild_fruit_calibration" else "better_wild_fruit_trees")
             if (calibrationEnabled) property("better_wild_fruit_trees.calibration.forms", calibrationForms)
@@ -161,7 +166,7 @@ if (calibrationEnabled) {
 tasks.named<Jar>("jar") {
     // MixinGradle may contribute registered-source-set refmaps to Jar specs independently
     // of source-set outputs. Explicitly exclude the native-only namespace as well as classes.
-    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*")
+    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*", "**/*original-events*", "**/*.wftord")
     filesMatching("better_wild_fruit_trees.refmap.json") { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
     manifest { attributes("Implementation-Version" to project.version) }
     finalizedBy("reobfJar")
@@ -243,6 +248,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             val native = run.name == "gameTestServer"
             val expectedNamespace = if (calibrationEnabled) "better_wild_fruit_calibration" else "better_wild_fruit_trees"
             check((run.properties["better_wild_fruit_trees.calibration.forms"] != null) == (native && calibrationEnabled)) { "Calibration property escaped native diagnostic RunConfig" }
+            check(run.properties["better_wild_fruit_trees.originalEventTrace"] == if (native && originalEventTrace) "true" else null) { "Ordered observation flag escaped native RunConfig" }
             if (native) {
                 check(file(run.workingDirectory).canonicalFile == nativeAttempt.canonicalFile) { "Native RunConfig directory drift" }
                 check(run.properties["forge.enabledGameTestNamespaces"] == expectedNamespace) { "Native namespace drift" }
@@ -287,5 +293,35 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
         }
     }
 }
+val prepareOriginalEventBindings by tasks.registering {
+    dependsOn(verifyCalibrationRunConfigGuard, nativeProbe.classesTaskName, sourceSets.main.get().classesTaskName)
+    onlyIf { originalEventTrace }
+    doLast {
+        fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+        fun git(vararg args: String): String {
+            val output = ByteArrayOutputStream()
+            exec { commandLine(listOf("git") + args); standardOutput = output; isIgnoreExitValue = true }
+            return output.toString("UTF-8").trim()
+        }
+        val lines = listOf("main" to sourceSets.main.get(), "nativeProbe" to nativeProbe).flatMap { (name, set) ->
+            set.output.classesDirs.files.flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "class" }.map { cls ->
+                "$name/${cls.relativeTo(root).invariantSeparatorsPath} ${sha(cls.readBytes())}"
+            }.toList() }
+        }.sorted()
+        val manifest = (lines.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8)
+        Files.write(nativeAttempt.resolve("original-events-classes.sha256").toPath(), manifest, StandardOpenOption.CREATE_NEW)
+        val binding = Properties()
+        binding.setProperty("nonce", nativeAttemptId)
+        binding.setProperty("attemptDirectory", nativeAttempt.canonicalPath)
+        binding.setProperty("profile", (if (calibrationEnabled) calibrationForms else "main26") + ":tcon=" + !project.hasProperty("withoutTConFixture") + ":ars=" + !project.hasProperty("withoutArsFixture") + ":wild=" + !project.hasProperty("withoutWildAddonsFixture"))
+        binding.setProperty("sourceCommit", git("rev-parse", "HEAD"))
+        binding.setProperty("sourceDirty", (git("status", "--porcelain").isNotEmpty()).toString())
+        binding.setProperty("classHashSetSha256", sha(manifest))
+        val receipt = nativeAttempt.resolve("before-own-prepare.properties")
+        if (receipt.isFile) binding.setProperty("nativeInputReceiptSha256", sha(receipt.readBytes()))
+        Files.newBufferedWriter(nativeAttempt.resolve("original-events-bindings.properties").toPath(), StandardOpenOption.CREATE_NEW).use { binding.store(it, "Postcompile pre-run native-only ordered observation binding") }
+    }
+}
+tasks.matching { it.name == "runGameTestServer" }.configureEach { dependsOn(prepareOriginalEventBindings) }
 tasks.register("verifyFast") { dependsOn("check", verifyScripts, verifyCalibrationRunConfigGuard) }
 tasks.register("verifyFull") { dependsOn("verifyFast", verifyNativeLog, verifyRuntimeJar) }

@@ -22,18 +22,25 @@ public final class OriginalLightTrace {
 
     public static void begin(String fruit, int sample) {
         // Only the original eight orange samples. No world/registry/codec references.
-        if (fruit.equals("orange") && sample >= 0 && sample < 8) active = new Session(sample);
+        if (fruit.equals("orange") && sample >= 0 && sample < 8) {
+            Session s = new Session(sample);
+            OrderedEvents.begin(sample);
+            s.orderedScope = OrderedEvents.scopeToken();
+            active = s;
+        }
     }
     public static void pulse(int pulse) {
         Session s = active;
         if (s == null || s.owner != Thread.currentThread().getId()) return;
         if (pulse < 1 || pulse > PULSES) { s.overflow.set(true); return; }
         s.pulse = pulse;
+        OrderedEvents.pulse(pulse);
     }
     public static void light(int kind, long pos, int value) {
         Session s = active;
         if (s == null || s.owner != Thread.currentThread().getId()) return;
         s.record(kind, pos, value, 0, 0, 0, 0);
+        if (kind == ADEQUATE) OrderedEvents.adequate(pos, value);
     }
     public static void write(long pos, int requestedStateIdentity, int returnedStateIdentity, boolean changed) {
         Session s = active;
@@ -43,6 +50,7 @@ public final class OriginalLightTrace {
     public static void canonicalWrite(long pos, long requestedCode, long returnedCode) {
         Session s = active;
         if (s == null || s.owner != Thread.currentThread().getId()) return;
+        OrderedEvents.writeReturn(pos, requestedCode, returnedCode);
         int p = s.pulse;
         if (p < 1 || p > PULSES || s.canonicalCounts[p] >= EVENT_LIMIT) { s.overflow.set(true); return; }
         int index = ++s.canonicalCounts[p];
@@ -67,6 +75,7 @@ public final class OriginalLightTrace {
         if (--s.skyDepth != 0 || storageIdentity != s.skyId) { s.overflow.set(true); return; }
         long after = s.skySlot < 0 ? -1 : s.versions.get(s.skySlot);
         s.record(SKY, pos, value, storageIdentity, s.skySlot, s.skyBefore, after);
+        OrderedEvents.sky(pos, value, storageIdentity, s.skyBefore, after);
     }
     public static void published(int storageIdentity) {
         Session s = active;
@@ -78,6 +87,7 @@ public final class OriginalLightTrace {
             s.overflow.set(true); return; // Bounded single attempt; never wait for another observer.
         }
         version++;
+        OrderedEvents.publication(s.orderedScope, storageIdentity, version);
         int pulse = s.pulse;
         if (pulse >= 1 && pulse <= PULSES) s.publicationCounts.incrementAndGet(pulse);
         long index = s.publications.getAndIncrement();
@@ -90,6 +100,7 @@ public final class OriginalLightTrace {
         if (s == null || s.owner != Thread.currentThread().getId()) return;
         active = null; // No wait for the light worker: this is a detached diagnostic snapshot, NOT a light barrier.
         if (s.skyDepth != 0) s.overflow.set(true);
+        OrderedEvents.finish(!s.overflow.get() && !s.canonicalIncomplete);
         s.print();
     }
 
@@ -97,6 +108,7 @@ public final class OriginalLightTrace {
     private static final class Session {
         final long owner = Thread.currentThread().getId();
         final int sample;
+        Object orderedScope;
         volatile int pulse;
         final AtomicBoolean overflow = new AtomicBoolean();
         final AtomicLong sequence = new AtomicLong(), publications = new AtomicLong();

@@ -132,6 +132,32 @@ public final class NativeLightTraceSelfTest {
             check(output.toString().lines().filter(line -> line.startsWith("ORIGINAL_LIGHT_STORAGE ")).count() == 16, "unbounded storage IDs");
             OriginalLightTrace.begin("orange", 8);
             check(!OriginalLightTrace.ownerActive(), "extra seed admitted");
+            // Opt-in actual redirect bodies: exact-once forwarding, paired BEGIN/RETURN,
+            // and original throwing invocation leaves a diagnostic-incomplete scope only.
+            var attempt = java.nio.file.Path.of(args[0]).resolve(java.util.UUID.randomUUID().toString());
+            java.nio.file.Files.createDirectory(attempt);
+            var bindings = new java.util.Properties();
+            bindings.setProperty("nonce", attempt.getFileName().toString());
+            bindings.setProperty("attemptDirectory", attempt.toAbsolutePath().toString());
+            bindings.setProperty("profile", "pure-authored-stubs-not-native");
+            bindings.setProperty("sourceCommit", "a".repeat(40)); bindings.setProperty("sourceDirty", "false");
+            for (String key : new String[]{"classHashSetSha256", "nativeInputReceiptSha256", "dictDigest"}) bindings.setProperty(key,"b".repeat(64));
+            bindings.setProperty("dictSchema", "unit"); bindings.setProperty("dictScope", "unit"); bindings.setProperty("dictComplete", "true");
+            var events = attempt.resolve("original-events");
+            com.bettercontent.betterwildfruittrees.gametest.OrderedEvents.configure(true, events, bindings);
+            OriginalLightTrace.begin("orange", 0); OriginalLightTrace.pulse(1);
+            throwing[0] = false; int countBefore = calls[0];
+            invoke(leaves, "trace$canSee", seeTypes, level, pos);
+            check(calls[0] == countBefore + 1, "ordered mode forwarded twice");
+            OriginalLightTrace.finish();
+            check(com.bettercontent.betterwildfruittrees.gametest.OrderedEvents.read(events.resolve("sample-0.wftord")).count() == 3, "paired query boundaries/STOP missing");
+            OriginalLightTrace.begin("orange", 1); OriginalLightTrace.pulse(1); throwing[0] = true;
+            try { invoke(leaves, "trace$brightness", brightTypes, level, LightLayer.SKY, pos); throw new AssertionError("missing original exception"); }
+            catch (IllegalStateException caught) { check(caught == failure, "ordered redirect replaced original exception"); }
+            finally { OriginalLightTrace.finish(); }
+            try { com.bettercontent.betterwildfruittrees.gametest.OrderedEvents.read(events.resolve("sample-1.wftord")); throw new AssertionError("throwing query declared complete"); }
+            catch (java.io.IOException incomplete) { /* dangling BEGIN is not measurement completion */ }
+            com.bettercontent.betterwildfruittrees.gametest.OrderedEvents.configure(false, events, bindings);
         } finally { OriginalLightTrace.finish(); System.setOut(prior); }
         System.out.println("Pure native light forwarding/result/exception/scope/bounds controls passed");
     }

@@ -1,4 +1,4 @@
-package com.bettercontent.betterwildfruittrees.gametest.nativeprobe;
+package com.bettercontent.betterwildfruittrees.gametest;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

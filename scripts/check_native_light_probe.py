@@ -94,8 +94,38 @@ def check_required_annotations(classes):
             assert at['shift'][1] == 'AFTER', 'Publication observation must follow original write'
 
 
+def check_reserved_sources(sources, config):
+    reserved = config['package']
+    allowed = {reserved+'.'+name for name in config['mixins']}
+    for path, text in sources.items():
+        package = re.search(r'(?m)^package\s+([\w.]+)\s*;', text)
+        assert package, 'Missing explicit Java package: '+str(path)
+        package = package.group(1)
+        if package == reserved or package.startswith(reserved+'.'):
+            assert package+'.'+Path(path).stem in allowed and re.search(r'@Mixin\s*\(', text), 'Ordinary/unconfigured class in reserved Mixin namespace: '+str(path)
+
+
+def check_reserved_classes(infos, config):
+    reserved = config['package'].replace('.', '/')
+    allowed = {reserved+'/'+name.replace('.', '/') for name in config['mixins']}
+    seen = set()
+    for info in infos:
+        owner = info['owner']
+        if owner.startswith(reserved+'/'):
+            assert owner in allowed and 'Lorg/spongepowered/asm/mixin/Mixin;' in info['annotations'], 'Ordinary/unconfigured compiled class in reserved Mixin namespace: '+owner
+            seen.add(owner)
+    assert seen == allowed, 'Missing configured native Mixin class'
+
+
+def check_reserved_namespace(classes=None):
+    config = json.loads((ROOT/'src/nativeProbe/resources/better_wild_fruit_trees.native-light.mixins.json').read_text())
+    check_reserved_sources({path: path.read_text() for path in (ROOT/'src').rglob('*.java')}, config)
+    if classes is not None:
+        check_reserved_classes([class_info(path.read_bytes()) for path in Path(classes).rglob('*.class')], config)
+
+
 def check_codebook_subscriber(classes):
-    info = class_info((Path(classes)/(PACKAGE+'NativeStateCodes.class')).read_bytes())
+    info = class_info((Path(classes)/'com/bettercontent/betterwildfruittrees/gametest/NativeStateCodes.class').read_bytes())
     subscriber = info['annotations'].get('Lnet/minecraftforge/fml/common/Mod$EventBusSubscriber;', {})
     assert subscriber.get('modid') == 'better_wild_fruit_trees' and subscriber.get('bus', (None, None))[1] == 'FORGE', 'Missing native-only codebook Forge subscriber'
     assert any(name == 'starting' and descriptor == '(Lnet/minecraftforge/event/server/ServerStartingEvent;)V'
@@ -176,9 +206,10 @@ def controls(processor=None):
     (out/'javac.log').write_text(result.stdout+result.stderr)
     assert result.returncode == 0, result.stderr
     check_required_annotations(classes)
+    check_reserved_namespace(classes)
     check_codebook_subscriber(classes)
     runtime = str(classes) + (':'+str(processor) if processor else '')
-    for name in ('NativeLightTraceSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.nativeprobe.StateCodebookSelfTest'):
+    for name in ('NativeLightTraceSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.StateCodebookSelfTest'):
         result = subprocess.run(['java', '-cp', runtime, name], capture_output=True, text=True, timeout=15)
         (out/(name.rsplit('.', 1)[-1]+'.log')).write_text(result.stdout+result.stderr)
         assert result.returncode == 0, result.stderr
@@ -195,5 +226,6 @@ if __name__ == '__main__':
     if len(sys.argv) == 7:
         check_refmap(sys.argv[5])
         check_required_annotations(sys.argv[6])
+        check_reserved_namespace(sys.argv[6])
         check_codebook_subscriber(sys.argv[6])
         print('Actual compiled nonshipping native probe annotations/refmap verified (not native application acceptance)')

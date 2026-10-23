@@ -14,6 +14,15 @@ Its required mixin configuration is an explicit native-run argument, not a globa
 configuration or manifest entry. Client/server runs and the runtime JAR do not include
 its classes/resources. The JDK-only ledger lives alongside the already excluded GameTest
 classes. The artifact gate rejects both native trace resources and all GameTest classes.
+The configuration's `gametest.nativeprobe` package and **all descendants** are reserved
+exclusively for its four configured Mixin classes. Ordinary `NativeStateCodes` and
+`StateCodebook` helpers instead live in the sibling `gametest` package within the native
+source set. Mixin forbids ordinary direct class loading from a reserved package; ordinary
+JDK/AP compilation alone cannot establish this loader rule or actual event delivery. Source
+and compiled-class guards reject every unconfigured/non-Mixin class there, including nested
+helper classes and descendant packages. Startup delivery/codebook completeness still require
+actual native validation; no previous pure/AP pass substitutes for that evidence.
+
 Outside the original orange sample loops, hooks return before observation conversions,
 callbacks/results, or engine lookups. Forwarding hooks still execute the original invocation
 exactly once when inactive, as required for native behavior.

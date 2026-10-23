@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 import uuid
 from copy import deepcopy
-from check_native_light_probe import controls, expected_refmap, check_refmap
+from check_native_light_probe import controls, expected_refmap, check_refmap, check_reserved_sources, check_reserved_classes
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -50,7 +50,7 @@ class OriginalLightProbeTest(unittest.TestCase):
         for forbidden in ('System.out', 'getBlockState(', 'setBlock(', 'getChunk(', 'getBrightness(', 'getLightValue(',
                           'nextInt(', 'nextFloat(', 'setSeed(', 'synchronized', '.join(', '.wait(', '.sleep(', 'ThreadLocal', 'Map<'):
             self.assertNotIn(forbidden, before_print)
-        adapter = (ROOT/'src/nativeProbe/java/com/bettercontent/betterwildfruittrees/gametest/nativeprobe/NativeStateCodes.java').read_text()
+        adapter = (ROOT/'src/nativeProbe/java/com/bettercontent/betterwildfruittrees/gametest/NativeStateCodes.java').read_text()
         self.assertIn('@SubscribeEvent\n    public static void starting(ServerStartingEvent ignored)', adapter)
         self.assertIn('new StateCodebook.Builder<BlockState>(131072)', adapter)
         hot = adapter.split('public static long code(BlockState state)', 1)[1]
@@ -76,6 +76,22 @@ class OriginalLightProbeTest(unittest.TestCase):
                 path = out/f'{index}-{mutation}.json'
                 path.write_text(json.dumps(bad))
                 with self.assertRaises(AssertionError): check_refmap(path)
+
+    def test_reserved_mixin_namespace_rejects_every_ordinary_class_and_descendant(self):
+        reserved = 'fixture.reserved'
+        config = {'package': reserved, 'mixins': ['RealMixin']}
+        good_sources = {'RealMixin.java': 'package fixture.reserved; @Mixin(Target.class) class RealMixin {}',
+                        'Helper.java': 'package fixture; class Helper {}'}
+        check_reserved_sources(good_sources, config)
+        for package, name, annotation in ((reserved, 'Helper', ''), (reserved+'.child', 'Bootstrap', ''),
+                                           (reserved, 'RealMixin', ''), (reserved+'.child', 'FakeMixin', '@Mixin(Target.class)')):
+            with self.assertRaises(AssertionError):
+                check_reserved_sources({name+'.java': 'package '+package+'; '+annotation+' class '+name+' {}'}, config)
+        good_info = {'owner': 'fixture/reserved/RealMixin', 'annotations': {'Lorg/spongepowered/asm/mixin/Mixin;': {}}}
+        check_reserved_classes([good_info, {'owner': 'fixture/Helper', 'annotations': {}}], config)
+        for owner in ('fixture/reserved/Helper', 'fixture/reserved/child/Bootstrap', 'fixture/reserved/RealMixin$Helper'):
+            with self.assertRaises(AssertionError): check_reserved_classes([good_info, {'owner': owner, 'annotations': {}}], config)
+        with self.assertRaises(AssertionError): check_reserved_classes([{'owner': good_info['owner'], 'annotations': {}}], config)
 
     def test_pure_forward_once_result_exception_and_bounded_ledger(self):
         controls()

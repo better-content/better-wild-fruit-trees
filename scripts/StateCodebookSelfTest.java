@@ -1,6 +1,6 @@
-package com.bettercontent.betterwildfruittrees.gametest.nativeprobe;
+package com.bettercontent.betterwildfruittrees.gametest;
 
-import com.bettercontent.betterwildfruittrees.gametest.OriginalLightTrace;
+import com.bettercontent.betterwildfruittrees.gametest.nativeprobe.ChunkWriteTraceMixin;
 import java.util.Map;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

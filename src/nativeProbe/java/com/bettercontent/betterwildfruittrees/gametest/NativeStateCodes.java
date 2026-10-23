@@ -1,6 +1,5 @@
-package com.bettercontent.betterwildfruittrees.gametest.nativeprobe;
+package com.bettercontent.betterwildfruittrees.gametest;
 
-import com.bettercontent.betterwildfruittrees.gametest.OriginalLightTrace;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;

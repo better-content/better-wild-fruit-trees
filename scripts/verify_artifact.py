@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import sys
 import zipfile
+from coconut_mapping import MIXIN as COCONUT_MIXIN, check_mapping as check_coconut_mapping, class_info
 
 REFMAP = "better_wild_fruit_trees.refmap.json"
 
@@ -147,6 +148,7 @@ def check_jar(archive):
     refmap = json.loads(archive.read(REFMAP))
     for name in ("FruitBlockMixin", "StaffMixin", "RecipeManagerMixin", "RootRemovalMixin", "CoconutFoodBlockMixin"):
         assert any(key.endswith("/" + name) and mapping for key, mapping in refmap["mappings"].items()), "Missing mapped target: " + name
+    check_coconut_mapping(refmap, class_info(archive.read(COCONUT_MIXIN + '.class')))
     config = json.loads(archive.read("better_wild_fruit_trees.mixins.json"))
     assert config["required"] and config["injectors"]["defaultRequire"] == 1, "Fail-open injection policy"
     plugin = "com.bettercontent.betterwildfruittrees.compat.AddonMixins"

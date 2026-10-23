@@ -57,7 +57,10 @@ repositories {
     maven("https://cursemaven.com") { content { includeGroup("curse.maven") } }
     mavenCentral()
 }
+// Raw pinned bytes are an independent production-ABI oracle, not a deobfuscated runtime fixture.
+val coconutNativeAbi by configurations.creating { isTransitive = false }
 dependencies {
+    add(coconutNativeAbi.name, "curse.maven:natures-spirit-1044992:6962783")
     minecraft("net.minecraftforge:forge:1.20.1-47.4.13")
     implementation(fg.deobf("curse.maven:dynamic-trees-252818:7502488"))
     implementation(fg.deobf("curse.maven:dynamic-trees-fruits-delight-1360918:7079680"))
@@ -189,8 +192,18 @@ val verifyNativeLog by tasks.registering(Exec::class) {
     dependsOn("runGameTestServer")
     commandLine("python3", "-B", "scripts/verify_artifact.py", "log", nativeAttempt.resolve("logs/latest.log").absolutePath)
 }
+val verifyCoconutMapping by tasks.registering {
+    doLast {
+        val mapped = configurations.compileClasspath.get().files.single {
+            it.name.startsWith("natures-spirit-1044992-6962783_mapped_") && it.extension == "jar"
+        }
+        val processor = configurations.annotationProcessor.get().files.single { it.name == "mixin-0.8.5-processor.jar" }
+        exec { commandLine("python3", "-B", "scripts/coconut_mapping.py", "native", coconutNativeAbi.singleFile.absolutePath, mapped.absolutePath) }
+        exec { commandLine("python3", "-B", "scripts/check_coconut_ap.py", processor.absolutePath) }
+    }
+}
 val verifyRuntimeJar by tasks.registering(Exec::class) {
-    dependsOn(stageRuntimeJar)
+    dependsOn(stageRuntimeJar, verifyCoconutMapping)
     commandLine("python3", "-B", "scripts/verify_artifact.py", "jar", "build/libs/${base.archivesName.get()}-$version.jar")
 }
 val verifyCalibrationRunConfigGuard by tasks.registering {

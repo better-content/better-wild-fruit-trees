@@ -1,4 +1,18 @@
 import unittest
+from unittest.mock import patch
+from copy import deepcopy
+from coconut_mapping import MIXIN, TARGET, METHODS, check_mapping
+
+
+def synthetic_coconut_info():
+    return {'owner': MIXIN, 'annotations': {'Lorg/spongepowered/asm/mixin/Mixin;': {'value': ['L' + TARGET + ';']}},
+            'methods': [(name, desc, 1, {'Lorg/spongepowered/asm/mixin/injection/Inject;':
+                {'method': [name], 'cancellable': 1, 'at': [('Lorg/spongepowered/asm/mixin/injection/At;', {'value': 'HEAD'})]}})
+                for name, (_, desc) in METHODS.items()]}
+
+
+def synthetic_coconut_mappings():
+    return {name: 'L' + TARGET + ';' + srg + desc for name, (srg, desc) in METHODS.items()}
 import io
 import json
 import zipfile
@@ -137,6 +151,9 @@ class OptionalArchiveContractTest(unittest.TestCase):
         entries = {'META-INF/MANIFEST.MF': 'MixinConfigs: better_wild_fruit_trees.mixins.json\n',
                    'better_wild_fruit_trees.mixins.json': json.dumps(config),
                    n.REFMAP: json.dumps({'mappings': {package.replace('.', '/') + '/mixin/' + name: {'method': 'mapped'} for name in mapped}})}
+        refmap = json.loads(entries[n.REFMAP])
+        refmap['mappings'][MIXIN] = synthetic_coconut_mappings()
+        entries[n.REFMAP] = json.dumps(refmap)
         for name in mixins:
             entries[package.replace('.', '/') + '/mixin/' + name + '.class'] = b'synthetic'
         for name in ['AddonMixins', 'RootLedger', 'LedgerNetwork', 'RareResources', 'TConstructAxes']:
@@ -149,8 +166,39 @@ class OptionalArchiveContractTest(unittest.TestCase):
             for name, value in entries.items():
                 archive.writestr(name, value)
         buffer.seek(0)
-        with zipfile.ZipFile(buffer) as archive:
+        # These existing tests are archive-shape controls. Real class parsing/AP behavior
+        # is independently tested by check_coconut_ap.py against actual compiled stub classes.
+        with zipfile.ZipFile(buffer) as archive, patch.object(n, 'class_info', return_value=synthetic_coconut_info()):
             n.check_jar(archive)
+
+    def test_coconut_exact_mapping_and_annotation_negatives(self):
+        good = {'mappings': {MIXIN: synthetic_coconut_mappings()}}
+        check_mapping(good, synthetic_coconut_info())
+        for name in METHODS:
+            for mutation in ('missing', 'wrong_srg', 'wrong_descriptor', 'wrong_owner', 'unmapped'):
+                bad = deepcopy(good)
+                values = bad['mappings'][MIXIN]
+                if mutation == 'missing': del values[name]
+                elif mutation == 'wrong_srg': values[name] = values[name].replace(METHODS[name][0], 'm_00000_')
+                elif mutation == 'wrong_descriptor': values[name] = values[name].replace('BlockPos;', 'BlockPos;I')
+                elif mutation == 'wrong_owner': values[name] = values[name].replace(TARGET, 'other/Target')
+                else: values[name] = name + METHODS[name][1]
+                with self.assertRaises(AssertionError): check_mapping(bad, synthetic_coconut_info())
+        for mutation in ('pseudo', 'remap_false', 'string_target', 'missing_injector', 'require_zero', 'not_cancellable', 'wrong_at'):
+            info = synthetic_coconut_info()
+            if mutation == 'pseudo': info['annotations']['Lorg/spongepowered/asm/mixin/Pseudo;'] = {}
+            elif mutation == 'remap_false': info['annotations']['Lorg/spongepowered/asm/mixin/Mixin;']['remap'] = 0
+            elif mutation == 'string_target': info['annotations']['Lorg/spongepowered/asm/mixin/Mixin;'] = {'targets': [TARGET.replace('/', '.')]}
+            elif mutation == 'missing_injector': info['methods'].pop()
+            else:
+                inject = info['methods'][0][3]['Lorg/spongepowered/asm/mixin/injection/Inject;']
+                if mutation == 'require_zero': inject['require'] = 0
+                elif mutation == 'not_cancellable': inject['cancellable'] = 0
+                else: inject['at'][0][1]['value'] = 'RETURN'
+            with self.assertRaises(AssertionError): check_mapping(good, info)
+        bad = deepcopy(good)
+        bad['data'] = {'searge': {MIXIN: {}}}
+        with self.assertRaises(AssertionError): check_mapping(bad, synthetic_coconut_info())
 
     def test_complete_synthetic_shape_is_accepted(self):
         self.check(self.entries())

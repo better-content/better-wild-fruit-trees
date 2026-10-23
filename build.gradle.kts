@@ -211,7 +211,11 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                     "Native effective SDK/authored args override: $effectiveArgs"
                 }
                 check(!nativeAttempt.resolve("world").exists() && !nativeAttempt.resolve("server.properties").exists()) { "Native input existed before own prepare" }
-                check(System.getenv("BC_CUSTOM_MOD_JAR_DIR").isNullOrBlank()) { "Unexpected custom provider override" }
+                // Canonical release passes its stage directory to every ordinary source gate.
+                // This mod declares no local custom providers and does not consume that binding.
+                // Isolated calibration diagnostics must still reject any provider override.
+                val providerBindingAbsent = System.getenv("BC_CUSTOM_MOD_JAR_DIR").isNullOrBlank()
+                if (calibrationEnabled) check(providerBindingAbsent) { "Unexpected custom provider override" }
                 val receipt = Properties()
                 receipt.setProperty("phase", "BEFORE_OWN_PREPARE_OR_ENGINE")
                 receipt.setProperty("attempt", nativeAttemptId)
@@ -222,7 +226,8 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 receipt.setProperty("worldAbsent", "true")
                 receipt.setProperty("propertiesAbsent", "true")
                 receipt.setProperty("authoredSeed", "8675309")
-                receipt.setProperty("customProviderOverrideAbsent", "true")
+                receipt.setProperty("customProviderOverrideAbsent", providerBindingAbsent.toString())
+                receipt.setProperty("customProviderBindingConsumed", "false")
                 listOf("tconstruct", "ars_nouveau", "wild_addons").forEach { name ->
                     receipt.setProperty("actualFixture.$name", run.properties["better_wild_fruit_trees.fixture.$name"].toString())
                 }

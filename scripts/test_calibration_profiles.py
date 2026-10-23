@@ -162,6 +162,13 @@ class CalibrationProfiles(unittest.TestCase):
         self.assertIn('actualFixture.$name', build)
         self.assertIn('dependsOn("reobfJar", verifyGrowthReferences)', build)
 
+    def test_release_binding_is_unused_and_calibration_remains_isolated(self):
+        build = (ROOT/'build.gradle.kts').read_text()
+        self.assertEqual(1, build.count('System.getenv("BC_CUSTOM_MOD_JAR_DIR")'))
+        self.assertIn('if (calibrationEnabled) check(providerBindingAbsent)', build)
+        self.assertIn('receipt.setProperty("customProviderOverrideAbsent", providerBindingAbsent.toString())', build)
+        self.assertIn('receipt.setProperty("customProviderBindingConsumed", "false")', build)
+
 
 if __name__ == '__main__':
     unittest.main()

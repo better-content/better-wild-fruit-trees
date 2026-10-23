@@ -394,6 +394,10 @@ the complete child-process lifetime: `/home/dev/better-content-modpack/.worklane
 Canonical `test-control.main.kts run source --repo better-wild-fruit-trees` is preferred;
 the controller must resolve that repository-root lock, not the distinct sibling
 `/home/dev/.worklane/forge-cache.lock`. BSD `flock` is not interoperable with the canonical Java lock.
+Ordinary release verification may inherit `BC_CUSTOM_MOD_JAR_DIR`; this provider has no local
+custom-provider dependencies and never consumes that binding. The before-prepare receipt records
+its actual absence/presence and nonconsumption. Isolated calibration diagnostics still require
+the binding to be absent; their profile and native-input isolation guards are unchanged.
 The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
 real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
 160-item replacement accounting, all protected species' persistent root ownership and native

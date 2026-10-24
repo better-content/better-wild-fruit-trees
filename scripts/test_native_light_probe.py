@@ -14,6 +14,15 @@ class OriginalLightProbeTest(unittest.TestCase):
     def test_only_observation_statements_added_to_original_fixture(self):
         path = ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/GrowthRateGameTests.java'
         source = path.read_text()
+        # Reviewed V2 registration/control-input migration ONLY. Restore the exact V1 declaration
+        # before the original whole-file oracle; the measured V1 body remains untouched.
+        begin = source.index('    // VERSIONED_GROWTH_REGISTRATION_BEGIN\n')
+        end = source.index('    // VERSIONED_GROWTH_REGISTRATION_END\n') + len('    // VERSIONED_GROWTH_REGISTRATION_END\n')
+        self.assertEqual('7433cc59e1d46b8a5cee6a2bf929a36e4ed91a507c13c269e6cfa04a7ee89694',
+                         hashlib.sha256(source[begin:end].encode()).hexdigest(), 'Reviewed V1/V2 registration contract drift')
+        source = source[:begin] + '    @GameTest(template = "growth", timeoutTicks = 2000)\n' + source[end:]
+        source = source.replace('4096*GrowthFixturePlan.frequencyRate(rate)*config.get()*folding.get()',
+                                '4096*rate*config.get()*folding.get()')
         additions = {
             'OriginalLightTrace.begin(fruit, sample);',
             'try { // ORIGINAL_LIGHT_OBSERVATION_SCOPE',

@@ -229,7 +229,8 @@ class CalibrationProfiles(unittest.TestCase):
         self.assertNotIn('LegacyGrowthWitness', loop)
         self.assertIn('h.runAfterDelay(5, () -> {', source)
         self.assertIn('Math.abs(measured/reference-1) < .20', source)
-        self.assertIn('timeoutTicks = 2000', source)
+        self.assertIn('v2 ? GrowthFixtureController.MAX_TICKS : 2000, 0, true', source)
+        self.assertIn('v2 ? GrowthFixtureV2::start : GrowthRateGameTests::nativeFreshGrowthCalibration', source)
         self.assertIn('if (branch.getRadius(level.getBlockState(root.above())) == tree.getMaxBranchRadius())', loop)
 
     def test_release_binding_is_unused_and_calibration_remains_isolated(self):

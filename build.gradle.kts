@@ -28,6 +28,15 @@ require(growthDiagnosticsValue != "false" || (!originalEventTrace && !lightQueue
 val growthDiagnosticsEnabled = growthDiagnosticsValue == "true" || originalEventTrace || lightQueueProofEnabled
 val calibrationEnabled = project.hasProperty("optionalGrowthCalibration")
 require(originalEventTraceScope != "kiwi-v1" || !calibrationEnabled) { "Kiwi observation requires the original main26 fixture" }
+val growthFixtureVersion = providers.gradleProperty("growthFixtureVersion").orNull ?: "v1"
+val growthFixtureScope = providers.gradleProperty("growthFixtureScope").orNull ?: "full"
+val growthFixtureControl = providers.gradleProperty("growthFixtureControl").orNull ?: "none"
+require(growthFixtureVersion in setOf("v1", "v2")) { "Unknown growth fixture version" }
+require(growthFixtureScope in setOf("full", "prototype")) { "Unknown growth fixture scope" }
+require(growthFixtureControl in setOf("none", "zero-energy", "double-cadence")) { "Unknown growth fixture control" }
+require(growthFixtureVersion == "v2" || (growthFixtureScope == "full" && growthFixtureControl == "none")) { "V2 controls/scope require v2" }
+require(growthFixtureVersion != "v2" || (!calibrationEnabled && !lightQueueProofEnabled && !growthDiagnosticsEnabled &&
+    listOf("growthDiagnostics", "originalEventTrace", "originalEventTraceScope", "lightQueueProof").none { project.hasProperty(it) })) { "V2 is separate from all original diagnostic scopes" }
 val calibrationForms = providers.gradleProperty("optionalGrowthCalibrationForms").orNull ?: "all"
 require(calibrationForms in setOf("all", "ancient", "saguaro,saguaro_mega")) { "Unknown/empty/duplicate calibration profile" }
 require(!project.hasProperty("optionalGrowthCalibrationForms") || calibrationEnabled) { "Form selection requires the diagnostic profile" }
@@ -42,6 +51,11 @@ val nativeProbe = sourceSets.create("nativeProbe") {
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
 }
 configurations[nativeProbe.annotationProcessorConfigurationName].extendsFrom(configurations.annotationProcessor.get())
+val growthFixtureV2 = if (growthFixtureVersion == "v2") sourceSets.create("growthFixtureV2") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
+} else null
+growthFixtureV2?.let { configurations[it.annotationProcessorConfigurationName].extendsFrom(configurations.annotationProcessor.get()) }
 // Absent entirely, including its Mixin registration, unless explicitly requested.
 val lightQueueProof = if (lightQueueProofEnabled) sourceSets.create("lightQueueProof") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
@@ -71,6 +85,10 @@ minecraft {
         create("client")
         create("server") { arg("--nogui") }
         create("gameTestServer") {
+            growthFixtureV2?.let {
+                mods.named("better_wild_fruit_trees") { source(it) }
+                args("--mixin.config", "better_wild_fruit_trees.growth-v2.mixins.json")
+            }
             if (growthDiagnosticsEnabled) {
                 mods.named("better_wild_fruit_trees") { source(nativeProbe) }
                 args("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json")
@@ -85,6 +103,9 @@ minecraft {
                 property("better_wild_fruit_trees.originalEventTrace", "true")
                 property("better_wild_fruit_trees.originalEventTraceScope", originalEventTraceScope)
             }
+            property("better_wild_fruit_trees.growthFixtureVersion", growthFixtureVersion)
+            property("better_wild_fruit_trees.growthFixtureScope", growthFixtureScope)
+            property("better_wild_fruit_trees.growthFixtureControl", growthFixtureControl)
             property("forge.enabledGameTestNamespaces", if (calibrationEnabled)
                 "better_wild_fruit_calibration" else "better_wild_fruit_trees")
             if (calibrationEnabled) property("better_wild_fruit_trees.calibration.forms", calibrationForms)
@@ -151,6 +172,7 @@ dependencies {
 mixin {
     add(sourceSets.main.get(), "better_wild_fruit_trees.refmap.json")
     add(nativeProbe, "better_wild_fruit_trees.native-light.refmap.json")
+    growthFixtureV2?.let { add(it, "better_wild_fruit_trees.growth-v2.refmap.json") }
     lightQueueProof?.let { add(it, "better_wild_fruit_trees.light-queue-proof.refmap.json") }
     config("better_wild_fruit_trees.mixins.json")
 }
@@ -203,7 +225,7 @@ if (calibrationEnabled) {
 tasks.named<Jar>("jar") {
     // MixinGradle may contribute registered-source-set refmaps to Jar specs independently
     // of source-set outputs. Explicitly exclude the native-only namespace as well as classes.
-    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*", "**/*original-events*", "**/*.wftord", "**/*light-queue-proof*", "**/*.wftq")
+    exclude("com/bettercontent/betterwildfruittrees/gametest/**", "gameteststructures/**", "**/*native-light*", "**/*original-events*", "**/*.wftord", "**/*light-queue-proof*", "**/*.wftq", "**/*growth-v2*")
     filesMatching("better_wild_fruit_trees.refmap.json") { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
     manifest { attributes("Implementation-Version" to project.version) }
     finalizedBy("reobfJar")
@@ -285,6 +307,10 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
         minecraft.runs.forEach { run ->
             val native = run.name == "gameTestServer"
             val expectedNamespace = if (calibrationEnabled) "better_wild_fruit_calibration" else "better_wild_fruit_trees"
+            listOf("growthFixtureVersion" to growthFixtureVersion, "growthFixtureScope" to growthFixtureScope,
+                "growthFixtureControl" to growthFixtureControl).forEach { (key, value) ->
+                check(run.properties["better_wild_fruit_trees.$key"] == if (native) value else null) { "Growth fixture selection escaped native RunConfig" }
+            }
             check((run.properties["better_wild_fruit_trees.calibration.forms"] != null) == (native && calibrationEnabled)) { "Calibration property escaped native diagnostic RunConfig" }
             check(run.properties["better_wild_fruit_trees.lightQueueProof"] == if (native && lightQueueProofEnabled) "true" else null) { "Queue proof flag escaped native RunConfig" }
             check(run.properties["better_wild_fruit_trees.originalEventTrace"] == if (native && originalEventTrace) "true" else null) { "Ordered observation flag escaped native RunConfig" }
@@ -292,6 +318,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             check(run.properties["better_wild_fruit_trees.growthDiagnostics"] == if (native && growthDiagnosticsEnabled) "true" else null) { "Growth diagnostics escaped native opt-in RunConfig" }
             val expectedSources = mutableSetOf(sourceSets.main.get())
             if (native && growthDiagnosticsEnabled) expectedSources.add(nativeProbe)
+            if (native && growthFixtureV2 != null) expectedSources.add(growthFixtureV2)
             if (native && lightQueueProofEnabled) expectedSources.add(lightQueueProof!!)
             val nativeTimingEnabled = native && System.getenv("BC_TIMING_NATIVE") == "true"
             if (nativeTimingEnabled) {
@@ -317,7 +344,8 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                     "--fml.forgeVersion", "47.4.13", "--fml.mcVersion", "1.20.1", "--fml.forgeGroup",
                     "net.minecraftforge", "--fml.mcpVersion", "20230612.114412")
                 val diagnosticArgs = if (growthDiagnosticsEnabled) listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json") else emptyList()
-                val originalExpectedArgs = pinnedSdkArgs + diagnosticArgs + listOf("--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")
+                val v2Args = if (growthFixtureV2 != null) listOf("--mixin.config", "better_wild_fruit_trees.growth-v2.mixins.json") else emptyList()
+                val originalExpectedArgs = pinnedSdkArgs + diagnosticArgs + v2Args + listOf("--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")
                 val fixtureExpectedArgs = if (lightQueueProofEnabled) originalExpectedArgs.dropLast(2) + listOf("--mixin.config", "better_wild_fruit_trees.light-queue-proof.mixins.json") + originalExpectedArgs.takeLast(2) else originalExpectedArgs
                 // Root attaches before MixinGradle appends the final authored config.
                 // Admit exactly that observation pair at that boundary; every original
@@ -333,6 +361,8 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 // Isolated calibration diagnostics must still reject any provider override.
                 val providerBindingAbsent = System.getenv("BC_CUSTOM_MOD_JAR_DIR").isNullOrBlank()
                 if (calibrationEnabled) check(providerBindingAbsent) { "Unexpected custom provider override" }
+                if (growthFixtureVersion == "v2" && (growthFixtureScope != "full" || growthFixtureControl != "none"))
+                    check(providerBindingAbsent) { "V2 diagnostics cannot consume custom provider overrides" }
                 val receipt = Properties()
                 receipt.setProperty("phase", "BEFORE_OWN_PREPARE_OR_ENGINE")
                 receipt.setProperty("attempt", nativeAttemptId)
@@ -340,6 +370,9 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 receipt.setProperty("actualNamespace", run.properties["forge.enabledGameTestNamespaces"].toString())
                 receipt.setProperty("actualArgs", run.args.joinToString(" "))
                 receipt.setProperty("growthDiagnostics", growthDiagnosticsEnabled.toString())
+                receipt.setProperty("growthFixtureVersion", growthFixtureVersion)
+                receipt.setProperty("growthFixtureScope", growthFixtureScope)
+                receipt.setProperty("growthFixtureControl", growthFixtureControl)
                 receipt.setProperty("originalEventTraceScope", if (originalEventTrace) originalEventTraceScope else "NONE")
                 receipt.setProperty("actualAllSourceSets", run.allSources.map { it.name }.distinct().sorted().joinToString(","))
                 receipt.setProperty("actualDiagnosticMixin", if (growthDiagnosticsEnabled) "better_wild_fruit_trees.native-light.mixins.json" else "NONE")
@@ -444,5 +477,69 @@ val prepareOriginalEventBindings by tasks.registering {
     }
 }
 tasks.matching { it.name == "runGameTestServer" }.configureEach { dependsOn(prepareOriginalEventBindings) }
+if (growthFixtureV2 != null) {
+    val fixture = growthFixtureV2
+    val resources = tasks.register<Copy>("prepareGrowthFixtureMixinResources") {
+        dependsOn(fixture.compileJavaTaskName)
+        from(layout.buildDirectory.file("tmp/compileGrowthFixtureV2Java/compileGrowthFixtureV2Java-refmap.json"))
+        into(layout.buildDirectory.dir("generated/growthFixtureV2MixinResources"))
+        rename { "better_wild_fruit_trees.growth-v2.refmap.json" }
+    }
+    fixture.resources.srcDir(resources)
+    val isolation = tasks.register<Exec>("verifyGrowthFixtureIsolation") {
+        dependsOn(fixture.classesTaskName, "createSrgToMcp")
+        doFirst {
+            val cp = configurations.compileClasspath.get().files
+            val forge = cp.single { it.name == "forge-1.20.1-47.4.13_mapped_official_1.20.1.jar" }
+            val dt = cp.single { it.name == "dynamic-trees-252818-7502488_mapped_official_1.20.1.jar" }
+            commandLine("python3", "-B", "scripts/check_growth_fixture_sdk.py", forge.absolutePath, dt.absolutePath,
+                "build/tmp/compileGrowthFixtureV2Java/compileGrowthFixtureV2Java-refmap.json", "build/classes/java/growthFixtureV2")
+        }
+    }
+    tasks.matching { it.name == "runGameTestServer" || it.name == "verifyFast" }.configureEach { dependsOn(isolation) }
+}
+val prepareGrowthFixtureBindings by tasks.registering {
+    dependsOn(verifyCalibrationRunConfigGuard, sourceSets.main.get().classesTaskName)
+    dependsOn(provider { minecraft.runs.getByName("gameTestServer").allSources.map { it.classesTaskName } })
+    onlyIf { growthFixtureVersion == "v2" }
+    doLast {
+        fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+        fun git(directory: File, vararg args: String): String {
+            val out = ByteArrayOutputStream()
+            exec { workingDir(directory); commandLine(listOf("git") + args); standardOutput = out }
+            return out.toString("UTF-8").trim()
+        }
+        check(git(projectDir, "status", "--porcelain").isEmpty()) { "V2 native requires frozen clean committed Source" }
+        val root = file("../../better-content-modpack")
+        check(git(root, "status", "--porcelain").isEmpty()) { "V2 native requires clean Root" }
+        val classLines = minecraft.runs.getByName("gameTestServer").allSources.flatMap { set ->
+            set.output.classesDirs.files.flatMap { dir -> dir.walkTopDown().filter { it.isFile && it.extension == "class" }
+                .map { "${set.name}/${it.relativeTo(dir).invariantSeparatorsPath} ${sha(it.readBytes())}" }.toList() }
+        }.sorted()
+        val manifest = (classLines.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8)
+        Files.write(nativeAttempt.resolve("growth-v2-classes.sha256").toPath(), manifest, StandardOpenOption.CREATE_NEW)
+        val inputs = sourceSets.main.get().runtimeClasspath.files.filter { it.isFile }.map { "${it.name} ${sha(it.readBytes())}" }.sorted()
+        val inputManifest = (inputs.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8)
+        Files.write(nativeAttempt.resolve("growth-v2-inputs.sha256").toPath(), inputManifest, StandardOpenOption.CREATE_NEW)
+        val binding = Properties()
+        binding.setProperty("fixtureVersion", growthFixtureVersion); binding.setProperty("scope", growthFixtureScope)
+        binding.setProperty("control", growthFixtureControl); binding.setProperty("sourceDirty", "false")
+        binding.setProperty("sourceCommit", git(projectDir, "rev-parse", "HEAD")); binding.setProperty("rootCommit", git(root, "rev-parse", "HEAD"))
+        binding.setProperty("nonce", nativeAttemptId); binding.setProperty("attemptDirectory", nativeAttempt.canonicalPath)
+        binding.setProperty("profile", "tcon=" + !project.hasProperty("withoutTConFixture") + ":ars=" + !project.hasProperty("withoutArsFixture") + ":wild=" + !project.hasProperty("withoutWildAddonsFixture"))
+        binding.setProperty("classHashSetSha256", sha(manifest)); binding.setProperty("inputHashSetSha256", sha(inputManifest))
+        binding.setProperty("nativeInputReceiptSha256", sha(nativeAttempt.resolve("before-own-prepare.properties").readBytes()))
+        listOf("TreeGrowthRates.java", "gametest/GrowthFixturePlan.java", "gametest/GrowthFixtureController.java", "gametest/GrowthFixtureV2.java", "gametest/GrowthRateGameTests.java").forEach { path ->
+            binding.setProperty("sourceSha256.$path", sha(file("src/main/java/com/bettercontent/betterwildfruittrees/$path").readBytes()))
+        }
+        binding.setProperty("buildSha256", sha(file("build.gradle.kts").readBytes()))
+        Files.newBufferedWriter(nativeAttempt.resolve("growth-v2-bindings.properties").toPath(), StandardOpenOption.CREATE_NEW).use { binding.store(it, "V2 frozen inputs; not acceptance") }
+    }
+}
+tasks.matching { it.name == "runGameTestServer" }.configureEach { dependsOn(prepareGrowthFixtureBindings) }
+if (growthFixtureVersion == "v2") verifyNativeLog.configure {
+    doLast { exec { commandLine("python3", "-B", "scripts/check_growth_v2.py", "--attempt", nativeAttempt.absolutePath,
+        "--scope", growthFixtureScope, "--profile", "tcon=" + !project.hasProperty("withoutTConFixture") + ":ars=" + !project.hasProperty("withoutArsFixture") + ":wild=" + !project.hasProperty("withoutWildAddonsFixture")) } }
+}
 tasks.register("verifyFast") { dependsOn("check", verifyScripts, verifyCalibrationRunConfigGuard) }
 tasks.register("verifyFull") { dependsOn("verifyFast", verifyNativeLog, verifyRuntimeJar) }

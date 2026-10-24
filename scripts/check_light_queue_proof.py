@@ -30,6 +30,10 @@ def check_sources(base=BASE):
   if '@GameTestHolder(WildFruitTrees.MOD_ID)' in t:
    assert '@PrefixGameTestTemplate(false)' in t,'Native registry identity prefix drift'
    expected +=[n.lower()for n in re.findall(r'@GameTest\([^)]*\)\s+public static void (\w+)\(',t)]
+   if '@net.minecraft.gametest.framework.GameTestGenerator' in t:
+    assert p.name=='GrowthRateGameTests.java' and t.count('@net.minecraft.gametest.framework.GameTestGenerator')==1
+    assert 'GrowthFixturePlan.NAME' in t and 'v2 ? GrowthFixtureV2::start : GrowthRateGameTests::nativeFreshGrowthCalibration' in t
+    expected+=['nativefreshgrowthcalibration']
  assert len(expected)==26,'Original mandatory inventory changed'
  expected+=['samechunkstablepriority','crosschunkmixedpriority','neighborpropagation']
  assert len(set(expected))==29,'Duplicate native registry name'

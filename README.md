@@ -405,6 +405,10 @@ authored Mixin config on the native run (Root attaches before MixinGradle adds t
 Every original SDK/authored argument and its order remains exact. Ordinary runs retain their
 original sources/arguments; all unrelated additions remain rejected. Root's SDK, fresh-health and archive-byte guards remain
 mandatory; this allowance neither ships observers nor changes the 26 native tests or tick caps.
+The candidate [versioned native-tick growth fixture v2](docs/growth-fixture-v2.md) is a separate
+manual-pulse measurement protocol, **not promoted**: v1 remains default during development.
+It requires focused source/native-isolation controls and the finite preregistered prototype/full
+matrix before any default switch or canonical qualification; production references/rates stay fixed.
 The distinct explicit [kiwi-v1 ordered observation](docs/kiwi-light-trace-v1.md) captures missing
 kiwi history through the unchanged fixture callbacks. It preserves orange-v1/default isolation,
 requires same-profile comparisons, and is not a protocol repair or default/native qualification.

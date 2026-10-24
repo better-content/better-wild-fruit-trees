@@ -19,7 +19,17 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class GrowthRateGameTests {
     private static final java.util.Map<String, Integer> sums = new java.util.LinkedHashMap<>();
-    @GameTest(template = "growth", timeoutTicks = 2000)
+    // VERSIONED_GROWTH_REGISTRATION_BEGIN
+    @net.minecraft.gametest.framework.GameTestGenerator
+    public static java.util.Collection<net.minecraft.gametest.framework.TestFunction> growthCalibrationVersions() {
+        GrowthFixturePlan.species();
+        boolean v2 = GrowthFixturePlan.v2();
+        return java.util.List.of(new net.minecraft.gametest.framework.TestFunction(
+            v2 ? GrowthFixturePlan.BATCH : "defaultBatch", GrowthFixturePlan.NAME,
+            WildFruitTrees.MOD_ID + ":growth", v2 ? GrowthFixtureController.MAX_TICKS : 2000, 0, true,
+            v2 ? GrowthFixtureV2::start : GrowthRateGameTests::nativeFreshGrowthCalibration));
+    }
+    // VERSIONED_GROWTH_REGISTRATION_END
     public static void nativeFreshGrowthCalibration(GameTestHelper h) { sums.clear(); probe(h,0); }
     private static void probe(GameTestHelper h, int index) {
         var fruits = new java.util.TreeSet<>(WildFruitPolicy.ENERGY.keySet()).stream().toList();
@@ -113,7 +123,7 @@ public final class GrowthRateGameTests {
                     tree.grow(level,(com.ferreusveritas.dynamictrees.block.rooty.RootyBlock)level.getBlockState(root).getBlock(),root,
                         15,capture,trunk,random,draw%2==0);
                 }
-                double expected=4096*rate*config.get()*folding.get();
+                double expected=4096*GrowthFixturePlan.frequencyRate(rate)*config.get()*folding.get();
                 h.assertTrue(Math.abs(capture.pulses-expected)<2, "Native growth pulse cadence ignored normalized rate " + id);
                 h.assertTrue(capture.energy == tree.getEnergy(level,root), "Young tree had an energy cap " + id);
                 // An obsolete record from the superseded implementation must not affect growth.

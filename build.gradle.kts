@@ -284,6 +284,19 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             val expectedSources = mutableSetOf(sourceSets.main.get())
             if (native && growthDiagnosticsEnabled) expectedSources.add(nativeProbe)
             if (native && lightQueueProofEnabled) expectedSources.add(lightQueueProof!!)
+            val nativeTimingEnabled = native && System.getenv("BC_TIMING_NATIVE") == "true"
+            if (nativeTimingEnabled) {
+                check(project.extensions.extraProperties.has("bcNativeTimingInstalled") &&
+                    project.extensions.extraProperties.get("bcNativeTimingInstalled") == true) { "Native timing flag requires the owning Root adapter" }
+                val timing = sourceSets.getByName("bcNativeTiming")
+                check(timing.java.srcDirs.size == 1 && timing.resources.srcDirs.size == 1 &&
+                    timing.java.srcDirs.single().resolve("bc/nonshipping/nativetiming/NativeTimingObserver.java").isFile &&
+                    timing.resources.srcDirs.single().resolve("bc_native_timing.mixins.json").isFile &&
+                    timing.output.classesDirs.files.intersect(sourceSets.main.get().output.classesDirs.files).isEmpty()) {
+                    "Native timing must remain the separate nonshipping Root source set"
+                }
+                expectedSources.add(timing)
+            }
             check(run.allSources.toSet() == expectedSources) { "Native/ordinary source classpath drift: ${run.allSources.map { it.name }}" }
             check(run.mods.getByName("better_wild_fruit_trees").sources.toSet() == expectedSources) { "Diagnostic mod source escaped explicit opt-in" }
             if (native) {
@@ -296,7 +309,12 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                     "net.minecraftforge", "--fml.mcpVersion", "20230612.114412")
                 val diagnosticArgs = if (growthDiagnosticsEnabled) listOf("--mixin.config", "better_wild_fruit_trees.native-light.mixins.json") else emptyList()
                 val originalExpectedArgs = pinnedSdkArgs + diagnosticArgs + listOf("--nogui", "--mixin.config", "better_wild_fruit_trees.mixins.json")
-                val expectedArgs = if (lightQueueProofEnabled) originalExpectedArgs.dropLast(2) + listOf("--mixin.config", "better_wild_fruit_trees.light-queue-proof.mixins.json") + originalExpectedArgs.takeLast(2) else originalExpectedArgs
+                val fixtureExpectedArgs = if (lightQueueProofEnabled) originalExpectedArgs.dropLast(2) + listOf("--mixin.config", "better_wild_fruit_trees.light-queue-proof.mixins.json") + originalExpectedArgs.takeLast(2) else originalExpectedArgs
+                // Root attaches before MixinGradle appends the final authored config.
+                // Admit exactly that observation pair at that boundary; every original
+                // SDK/authored argument and its order remain exact, arbitrary extras fail.
+                val expectedArgs = if (nativeTimingEnabled) fixtureExpectedArgs.dropLast(2) +
+                    listOf("--mixin.config", "bc_native_timing.mixins.json") + fixtureExpectedArgs.takeLast(2) else fixtureExpectedArgs
                 check(effectiveArgs == expectedArgs) {
                     "Native effective SDK/authored args override: $effectiveArgs"
                 }

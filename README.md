@@ -398,6 +398,13 @@ Ordinary release verification may inherit `BC_CUSTOM_MOD_JAR_DIR`; this provider
 custom-provider dependencies and never consumes that binding. The before-prepare receipt records
 its actual absence/presence and nonconsumption. Isolated calibration diagnostics still require
 the binding to be absent; their profile and native-input isolation guards are unchanged.
+Root's explicit `BC_TIMING_NATIVE=true` source instrumentation additionally requires its installed
+adapter marker, separate `bcNativeTiming` helper sources/resources, disjoint production output,
+and exactly one `--mixin.config bc_native_timing.mixins.json` pair immediately before the final
+authored Mixin config on the native run (Root attaches before MixinGradle adds that final pair).
+Every original SDK/authored argument and its order remains exact. Ordinary runs retain their
+original sources/arguments; all unrelated additions remain rejected. Root's SDK, fresh-health and archive-byte guards remain
+mandatory; this allowance neither ships observers nor changes the 26 native tests or tick caps.
 The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
 real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
 160-item replacement accounting, all protected species' persistent root ownership and native

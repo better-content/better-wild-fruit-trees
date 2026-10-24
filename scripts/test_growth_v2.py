@@ -41,6 +41,16 @@ def synthetic():
     return rows
 
 class GrowthV2Test(unittest.TestCase):
+    def test_already_evaluated_native_argument_result_and_random_witness_metrics(self):
+        out=ROOT/'build/growth-metrics-controls'/str(uuid.uuid4());out.mkdir(parents=True)
+        p=subprocess.run(['javac','--release','17','-d',str(out),str(PKG/'GrowthPulseMetrics.java'),str(PKG/'GrowthFixtureController.java'),str(ROOT/'scripts/GrowthPulseMetricsSelfTest.java')],capture_output=True,text=True,timeout=30)
+        self.assertEqual(0,p.returncode,p.stdout+p.stderr)
+        p=subprocess.run(['java','-ea','-cp',str(out),'GrowthPulseMetricsSelfTest'],capture_output=True,text=True,timeout=30)
+        (out/'result.log').write_text(p.stdout+p.stderr);self.assertEqual(0,p.returncode,p.stdout+p.stderr)
+        accessor=(ROOT/'src/growthFixtureV2/java/com/bettercontent/betterwildfruittrees/gametest/growthv2/mixin/LegacyRandomSeedAccess.java').read_text()
+        self.assertIn('@Accessor("seed")',accessor)
+        self.assertNotIn('@Mutable',accessor);self.assertNotIn('@Invoker',accessor)
+
     def test_actual_cleanup_reentrant_entity_release_and_partial_exception_controls(self):
         out=ROOT/'build/growth-cleanup-controls'/str(uuid.uuid4());out.mkdir(parents=True)
         p=subprocess.run(['javac','--release','17','-d',str(out),str(PKG/'GrowthPlotCleanup.java'),str(PKG/'GrowthOwnedResources.java'),str(ROOT/'scripts/GrowthCleanupSelfTest.java')],capture_output=True,text=True,timeout=30)
@@ -127,7 +137,8 @@ class GrowthV2Test(unittest.TestCase):
         from check_growth_fixture_sdk import check_refmap, ROOTY, CHUNK, DESC
         prefix='com/bettercontent/betterwildfruittrees/gametest/growthv2/mixin/'
         mappings={prefix+'RootRandomTickIsolationMixin':{'randomTick'+DESC:'L'+ROOTY+';m_213898_'+DESC},
-                  prefix+'TickingHolderAccess':{'getVisibleChunkIfPresent':'m_140327_(J)Lnet/minecraft/server/level/ChunkHolder;'}}
+                  prefix+'TickingHolderAccess':{'getVisibleChunkIfPresent':'m_140327_(J)Lnet/minecraft/server/level/ChunkHolder;'},
+                  prefix+'LegacyRandomSeedAccess':{'seed':'f_188575_:Ljava/util/concurrent/atomic/AtomicLong;'}}
         good=dict(mappings=mappings,data=dict(searge=deepcopy(mappings)));check_refmap(good)
         for mutation in ('missing','wrong','namespace'):
             bad=deepcopy(good)
@@ -141,7 +152,7 @@ class GrowthV2Test(unittest.TestCase):
         self.assertNotIn('runtimeClasspath += sourceSets.main.get().compileClasspath',block)
         config=__import__('json').loads((ROOT/'src/growthFixtureV2/resources/better_wild_fruit_trees.growth-v2.mixins.json').read_text())
         self.assertTrue(config['required']);self.assertEqual(1,config['injectors']['defaultRequire'])
-        self.assertEqual({'RootRandomTickIsolationMixin','TickingHolderAccess'},set(config['mixins']))
+        self.assertEqual({'RootRandomTickIsolationMixin','TickingHolderAccess','LegacyRandomSeedAccess'},set(config['mixins']))
         self.assertNotIn('config("better_wild_fruit_trees.growth-v2.mixins.json")',build)
         self.assertIn('if (growthFixtureVersion == "v2") sourceSets.create("growthFixtureV2")',build)
 

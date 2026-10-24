@@ -4,6 +4,6 @@
   "package": "com.bettercontent.betterwildfruittrees.gametest.growthv2.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "better_wild_fruit_trees.growth-v2.refmap.json",
-  "mixins": ["RootRandomTickIsolationMixin", "TickingHolderAccess"],
+  "mixins": ["RootRandomTickIsolationMixin", "TickingHolderAccess", "LegacyRandomSeedAccess"],
   "injectors": {"defaultRequire": 1}
 }

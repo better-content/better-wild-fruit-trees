@@ -124,6 +124,20 @@ ordered post-admission cleanup with every owned container empty. Dirty preparati
 errors name the exact containers/IDs. Controlled tests reproduce the old drain-before-clear bug,
 partial failures, reentrant disposal and preservation of foreign actors. They are not native proof.
 
+### Bounded pulse and RNG observations
+
+V2 records the **already evaluated** native getEnergy argument and GrowSignal return fields
+(success/choked/steps), actual growth-kit class and biome identity. No extra native energy,
+suitability or random operation is evaluated to obtain those metrics. A required native-fixture
+LegacyRandomSource accessor reads its AtomicLong core state, never changes or consumes it. Its
+admission witness checks the core state immediately after the existing once-per-sample seeds.
+Before/after native growth (including energy evaluation), explicit ageVolume and consecutive
+callbacks distinguish observed private-growth versus shared-world core-state changes. Core-state
+inequality is evidence of intervening state change, **not** draw counts, a counterfactual cause,
+complete RNG state (Gaussian cache is not included), light completion or world equivalence.
+Metrics are bounded by4096 pulses and remain excluded from runtime archives. Instrumented
+observations can perturb timing; they never qualify a failed mean or authorize recalibration.
+
 ## Evidence and finite admission
 
 Pre-run clean-source bindings include both source heads, compiled-class and actual runtime-input

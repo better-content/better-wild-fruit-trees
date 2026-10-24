@@ -59,6 +59,7 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
     private static final AABB DOMAIN = new AABB(4, 160, 4, 93, 221, 93);
     private static final TicketType<UUID> TICKET = TicketType.create("bc_wft_growth_v2", UUID::compareTo);
     public interface TickingAccess { net.minecraft.server.level.ChunkHolder growthV2$visible(long key); }
+    public interface RandomStateAccess { java.util.concurrent.atomic.AtomicLong growthV2$seed(); }
     private static GrowthFixtureV2 active;
     private final GameTestHelper helper;
     private final ServerLevel level;
@@ -85,6 +86,7 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
     private Species tree;
     private BranchBlock branch;
     private RandomSource random;
+    private GrowthPulseMetrics metrics = new GrowthPulseMetrics();
     private long setupNanos, admittedNanos, cleanupNanos, admittedDay;
     private int growCalls, ageCalls;
     private long firstPulseTick, lastPulseTick, maxPulseGap, pulseTickDigest;
@@ -133,6 +135,7 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
     @Override public void schedule(Runnable callback) { helper.runAfterDelay(1, callback); }
     @Override public void prepare(GrowthFixtureController.Sample sample) {
         setupNanos = System.nanoTime(); admittedNanos = 0; cleanupNanos = 0;
+        metrics = new GrowthPulseMetrics();
         growCalls = ageCalls = autonomousBlocked = 0; firstPulseTick = lastPulseTick = maxPulseGap = pulseTickDigest = 0;
         isolation.disarm(); expectedRootBlock = null; contamination = null;
         if (!tickets.isEmpty() || plotOwned || !ownedEntities.isEmpty()) throw new IllegalStateException("Prior sample ownership not clean: " + ownershipSnapshot());
@@ -185,7 +188,9 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
             throw new IllegalStateException("Pinned native species/configuration mismatch");
         emit("CONSTRUCT", Map.of("sample", sample, "tick", tick(), "day", level.getDayTime(),
             "branch", branch.toString(), "leaves", tree.getLeavesProperties().getDynamicLeavesState(4).toString(),
-            "endpoint", endpoint(), "reference", reference(sample.species()), "energy", tree.getSignalEnergy()));
+            "endpoint", endpoint(), "reference", reference(sample.species()), "energy", tree.getSignalEnergy(),
+            "biome", level.getBiome(ROOT).unwrapKey().map(x -> x.location().toString()).orElse("UNKNOWN"),
+            "logicKit", tree.getGrowthLogicKit().getConfigurable().getClass().getName()));
     }
     private void environment() {
         if (active != this || !environmentOwned || level.getDayTime() != 6000 || level.isRaining() || level.isThundering() ||
@@ -232,10 +237,14 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
         }
         random = RandomSource.create(sample.growthSeed());
         level.random.setSeed(sample.worldSeed()); // ONCE at measurement admission, never during growth.
+        if (seedSnapshot(level.random) != GrowthPulseMetrics.legacyState(sample.worldSeed()) ||
+            seedSnapshot(random) != GrowthPulseMetrics.legacyState(sample.growthSeed()))
+            throw new IllegalStateException("Read-only RNG accessor admission witness mismatch");
         admittedNanos = System.nanoTime(); admittedDay = level.getDayTime();
         emit("ADMIT", Map.of("sample", sample, "tick", tick(), "day", admittedDay, "growthSeed", sample.growthSeed(),
             "worldSeed", sample.worldSeed(), "fertility", level.getBlockState(ROOT).getValue(RootyBlock.FERTILITY),
-            "setupDurationNs", admittedNanos - setupNanos));
+            "setupDurationNs", admittedNanos - setupNanos, "worldRandomClass", level.random.getClass().getName(),
+            "growthRandomClass", random.getClass().getName(), "seedAccessorWitness", true));
     }
     @Override public int pulse(int pulse) {
         environment();
@@ -243,12 +252,20 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
         if (growCalls > 0 && now <= lastPulseTick) throw new IllegalStateException("Native pulse burst");
         if (growCalls == 0) firstPulseTick = now; else maxPulseGap = Math.max(maxPulseGap, now - lastPulseTick);
         lastPulseTick = now; pulseTickDigest = pulseTickDigest * 31 + now; growCalls++;
+        long worldBefore = seedSnapshot(level.random), growthBefore = seedSnapshot(random);
         float energy = GrowthFixturePlan.control().equals("zero-energy") ? 0 : tree.getEnergy(level, ROOT);
-        branch.growSignal(level, ROOT.above(), new GrowSignal(tree, ROOT, energy, random, Direction.UP));
+        var result = branch.growSignal(level, ROOT.above(), new GrowSignal(tree, ROOT, energy, random, Direction.UP));
+        long worldAfterGrow = seedSnapshot(level.random), growthAfterGrow = seedSnapshot(random);
+        metrics.observe(energy, result.success, result.choked, result.numSteps);
         if (pulse % 16 == 0) { ageCalls++; TreeHelper.ageVolume(level, ROOT.above(), 20, 48, 1, SafeChunkBounds.ANY); }
+        metrics.observeRandom(worldBefore, growthBefore, worldAfterGrow, growthAfterGrow, seedSnapshot(level.random));
         environment(); // A native join during grow/age must invalidate this pulse before acceptance.
         if (level.getBlockState(ROOT.above()).getBlock() != branch) throw new IllegalStateException("Native trunk identity lost");
         return branch.getRadius(level.getBlockState(ROOT.above()));
+    }
+    private static long seedSnapshot(RandomSource source) {
+        if (!(source instanceof RandomStateAccess access)) throw new IllegalStateException("Unpinned fixture RNG implementation: " + source.getClass().getName());
+        return access.growthV2$seed().get(); // Core-state witness only, NOT complete RNG/world equivalence.
     }
     @Override public int endpoint() { return tree.getMaxBranchRadius(); }
     @Override public double reference(String fruit) { return TreeGrowthRates.reference(GrowthFixturePlan.id(fruit)).pulses(); }
@@ -369,7 +386,8 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
         long now = System.nanoTime();
         emit("SAMPLE", Map.of("result", result, "position", List.of(48,160,48), "terminalDay", level.getDayTime(),
             "admissionDay", admittedDay, "measurementDurationNs", admittedNanos == 0 ? 0 : Math.max(0, now - admittedNanos - cleanupNanos),
-            "cleanupDurationNs", cleanupNanos, "nativeCalls", Map.of("grow", growCalls, "age", ageCalls,
+            "cleanupDurationNs", cleanupNanos, "pulseMetrics", metrics.summary(), "randomStateWitness", metrics.randomSummary(),
+            "nativeCalls", Map.of("grow", growCalls, "age", ageCalls,
                 "firstPulseTick", firstPulseTick, "lastPulseTick", lastPulseTick, "maximumGapTicks", maxPulseGap,
                 "tickDigest", pulseTickDigest, "worldSeedCalls", admittedNanos == 0 ? 0 : 1,
                 "blockedRootRandomTicks", autonomousBlocked)));

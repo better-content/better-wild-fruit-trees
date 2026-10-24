@@ -1,4 +1,7 @@
-# Cause-first light readiness proposal — NOT implemented
+# Cause-first light readiness proposal — RETIRED, NOT implemented
+
+> This historical calibration proposal is superseded by explicit retirement of the test category.
+> It does not authorize implementation, new diagnostics or native campaigns.
 
 ## Decision and evidence
 

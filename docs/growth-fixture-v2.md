@@ -1,4 +1,9 @@
-# Versioned native growth calibration
+# Versioned native growth calibration — RETIRED
+
+> Explicit user retirement supersedes this historical protocol. Do not run, promote, restore or
+> require v1/v2 calibration, prototypes, full matrices or diagnostic controls. These notes and
+> all prior evidence remain retained; they are not current commands or acceptance gates.
+> Production references/rates and independent functional cadence/persistence tests are unchanged.
 
 ## Authority and measured claim
 

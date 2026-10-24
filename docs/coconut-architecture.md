@@ -1,4 +1,8 @@
-# Nonshipping Coconut structural reference
+# Nonshipping Coconut structural reference — calibration RETIRED
+
+> Historical endpoint design, not an active calibration gate. Explicit user retirement prohibits
+> further adult-size/manual-pulse reference campaigns. Native product/geometry functional tests
+> and existing production references remain unchanged.
 
 The specifically reviewed endpoint `native_coconut_fruiting_crown_v1` means **native
 reproductive-eligible, connected leaf-crowned palm structure**. It does not mean full family-cap

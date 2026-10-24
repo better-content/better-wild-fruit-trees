@@ -1,4 +1,7 @@
-# Original orange light trace (nonshipping diagnostic)
+# Original orange light trace — RETIRED
+
+> Historical calibration diagnostic only. Explicit user retirement prohibits further launches or
+> treating the following protocol as an active gate. Source and evidence remain retained.
 
 This is observation, **not** a growth/lighting protocol repair or evidence that historical
 orange drift has been explained. It adds no GameTests and changes neither the exact-26

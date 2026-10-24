@@ -358,15 +358,14 @@ Apple protection targets `dynamictrees:apple_oak`, not ordinary `dynamictrees:oa
 ./gradlew --no-daemon clean verifyFull stageRuntimeJar
 ```
 
-These are documented gates, not authorization to execute them for the incomplete extension.
-After authorization, first compile sources, run the isolated optional diagnostic, review/measure
-the cactus endpoint and all four references, and implement its missing endpoint acceptance.
-Only then can the full gates pass. No gate was run for this extension.
-
 The wrapper downloads pinned Forge/mod dependencies. `verifyFast` runs Minecraft-free
-contracts; `verifyFull` also runs isolated headless Forge GameTests, a native diagnostic
-gate, and production archive/refmap checks. The main native gate requires exactly 26 tests:
-the established nineteen (including lemon) plus seven optional-tree contracts. Tests cover the thirteen established species, native
+contracts; `verifyFull` also runs isolated headless Forge functional GameTests, strict native
+logs, and production archive/refmap checks. The main native gate requires exactly 25 tests:
+eighteen established functional tests (including lemon) plus seven optional-tree contracts.
+Adult-size/manual-pulse-versus-fixed-reference calibration is retired by explicit user direction,
+including v1, v2, optional endpoints and their diagnostics/matrices. This removes a test category;
+it is not a passing calibration, threshold relaxation or new production reference. Production
+`TreeGrowthRates` values, references and constant rates remain unchanged. Tests cover the thirteen established species, native
 planting/harvest/mining/staff paths, replenishment attempts, full resource reload, and
 ordinary-tree controls. The fixture includes Patchouli 85 so DT's optional guide recipe
 has its book item. Fixture-only defaults disable DT chunk decoration to avoid racing
@@ -396,22 +395,19 @@ the controller must resolve that repository-root lock, not the distinct sibling
 `/home/dev/.worklane/forge-cache.lock`. BSD `flock` is not interoperable with the canonical Java lock.
 Ordinary release verification may inherit `BC_CUSTOM_MOD_JAR_DIR`; this provider has no local
 custom-provider dependencies and never consumes that binding. The before-prepare receipt records
-its actual absence/presence and nonconsumption. Isolated calibration diagnostics still require
-the binding to be absent; their profile and native-input isolation guards are unchanged.
+nonconsumption. Retired calibration/diagnostic Gradle properties are rejected before fresh-attempt
+allocation, rather than silently selecting a weaker or empty namespace.
 Root's explicit `BC_TIMING_NATIVE=true` source instrumentation additionally requires its installed
 adapter marker, separate `bcNativeTiming` helper sources/resources, disjoint production output,
 and exactly one `--mixin.config bc_native_timing.mixins.json` pair immediately before the final
 authored Mixin config on the native run (Root attaches before MixinGradle adds that final pair).
 Every original SDK/authored argument and its order remains exact. Ordinary runs retain their
 original sources/arguments; all unrelated additions remain rejected. Root's SDK, fresh-health and archive-byte guards remain
-mandatory; this allowance neither ships observers nor changes the 26 native tests or tick caps.
-The candidate [versioned native-tick growth fixture v2](docs/growth-fixture-v2.md) is a separate
-manual-pulse measurement protocol, **not promoted**: v1 remains default during development.
-It requires focused source/native-isolation controls and the finite preregistered prototype/full
-matrix before any default switch or canonical qualification; production references/rates stay fixed.
-The distinct explicit [kiwi-v1 ordered observation](docs/kiwi-light-trace-v1.md) captures missing
-kiwi history through the unchanged fixture callbacks. It preserves orange-v1/default isolation,
-requires same-profile comparisons, and is not a protocol repair or default/native qualification.
+mandatory; this allowance neither ships observers nor changes the 25 functional tests or their
+native deadlines. Historical calibration code and controls are preserved outside active
+compilation/discovery in `retired/growth-calibration/`; prior worlds, logs, failures and receipts
+remain retained, not converted to acceptance. No v2 promotion or further calibration campaign
+is required or permitted by this gate.
 The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
 real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
 160-item replacement accounting, all protected species' persistent root ownership and native
@@ -421,9 +417,7 @@ Rarity fixtures enumerate every field gate outcome and all 256 tree gate outcome
 every protected species' actual pinned upstream weighted rule, proving native ordinary fallback,
 unchanged density/chance selectors and ordinary-species RNG behavior. They do not establish
 representative-seed landscape density or exploration time.
-Established thirteen-species growth-rate fixtures run eight seeded sunlit native fresh-growth samples per species,
-checking the adult-trunk reference against its calibration with a 20% sample-mean tolerance.
-A separate stratified 4,096-draw native `Species.grow` test per species checks actual pulse
+The retained stratified 4,096-draw native `Species.grow` functional test per species checks actual pulse
 frequency, native emitted energy, full-size branch taper, obsolete-age/calendar/reload invariance,
 unchanged generated-soil fertility and ordinary-tree controls. Fixture growthMultiplier/folding
 match the pack's 0.5/2. Rate math preserves seasons/boosts and proves the nominal thirty-day

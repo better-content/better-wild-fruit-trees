@@ -8,6 +8,10 @@ import zipfile
 from coconut_mapping import MIXIN as COCONUT_MIXIN, check_mapping as check_coconut_mapping, class_info
 
 REFMAP = "better_wild_fruit_trees.refmap.json"
+INVENTORY = json.loads(Path(__file__).with_name('native_required_tests.json').read_text())
+REQUIRED_NATIVE_TESTS = INVENTORY['required_tests']
+assert INVENTORY['schema'] == 'bc.wft_native_inventory.v2'
+assert len(REQUIRED_NATIVE_TESTS) == len(set(REQUIRED_NATIVE_TESTS)) == 25
 
 
 def expected_warning(line):
@@ -131,8 +135,8 @@ def classify_log(text):
 def check_log(text):
     findings = [item['record'] for item in classify_log(text) if item['blocking']]
     counts = re.findall(r"All (\d+) required tests passed", text)
-    if not counts or int(counts[-1]) != 26:
-        findings.append("Missing complete native GameTest success (exactly twenty-six required tests)")
+    if not counts or int(counts[-1]) != len(REQUIRED_NATIVE_TESTS):
+        findings.append("Missing complete functional native GameTest success (exactly twenty-five required tests; calibration retired)")
     return findings
 
 

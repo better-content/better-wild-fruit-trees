@@ -226,8 +226,7 @@ public final class OptionalTreeGameTests {
             h.succeed();
         } finally { clear(h, pos); }
     }
-    // Includes the same all32 probe and asynchronous native retirement as the 2000-tick
-    // diagnostic. Its 32*(1+5) scheduled ticks alone consume 192 ticks before retirement.
+    // Functional native cadence/rate/energy checks only; adult-size calibration is retired.
     @GameTest(template = "empty", timeoutTicks = 2000)
     public static void optionalNativePulseCadenceUsesEachMeasuredReference(GameTestHelper h) {
         var level = h.getLevel(); var pos = h.absolutePos(new BlockPos(4, 1, 4));
@@ -255,7 +254,7 @@ public final class OptionalTreeGameTests {
                 h.assertTrue(Float.isFinite(part.energy) && part.energy == tree.getEnergy(level, pos), "Optional full-size energy missing " + id);
                 clear(h, pos);
             }
-            if (forms.isEmpty()) h.succeed(); else OptionalGrowthCalibration.verifyWoodReferences(h);
+            h.succeed();
         } finally { clear(h, pos); }
     }
     private static int countProducts(GameTestHelper h, BlockPos root, Block block) {

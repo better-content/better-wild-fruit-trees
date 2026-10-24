@@ -1,4 +1,7 @@
-# SOURCE native light queue mechanism v1
+# SOURCE native light queue mechanism v1 — RETIRED
+
+> Historical calibration diagnostic only. Explicit user retirement prohibits further launches or
+> treating the following protocol as an active gate. Source and evidence remain retained.
 
 **Not a fence, protocol repair, original-growth qualification or deployment authorization.**
 Explicit `-PlightQueueProof=true` selects a separate nonshipping source set/config/package.

@@ -1,0 +1,32 @@
+{
+  "schema": "bc.wft_native_inventory.v2",
+  "namespace": "better_wild_fruit_trees",
+  "category": "FUNCTIONAL_CALIBRATION_RETIRED",
+  "required_tests": [
+    "growthrategametests.nativegrowthfrequencyisconstantwithoutageorsizetransitions",
+    "lemonmininggametests.lemonminingallnativeagesandhalves",
+    "lemonmininggametests.lemonpairedremovalharvestplantingandsurvival",
+    "optionaltreegametests.directandweightedoptionalrarityhaveexactgatesandcactusfallback",
+    "optionaltreegametests.edibleproductssurvivelootandmatureharvestincludesfallingcoconut",
+    "optionaltreegametests.nativecactusandpalmoverridesitesuserootallowance",
+    "optionaltreegametests.nativesaguaromegaconversionpersistsonlyknownorigin",
+    "optionaltreegametests.optionalnativepulsecadenceuseseachmeasuredreference",
+    "optionaltreegametests.optionalnativestockanddirectplayerprotection",
+    "optionaltreegametests.optionalrootallowancepersistsandchargesonlysuccessfulplacement",
+    "productiongametests.nativebushgrowthandharvestmatchnormalizedrates",
+    "productiongametests.nativetreeplacementspendsonlysuccessfulreplacementsandpersists",
+    "raritygametests.pinnedfruitselectorsarerareandfallbacktoordinarytrees",
+    "wildbushgametests.bushandtreeactualtoolgateandplanting",
+    "wildbushgametests.bushharvestregrowthandfixedgeometry",
+    "wildbushgametests.configuredworldgenmakessparseirregularfields",
+    "wildbushgametests.optionaltconstructaxesusenativeperstacktier",
+    "wildfruitgametests.alllootsourcesstrippropagulesandretainfoodandordinaryseeds",
+    "wildfruitgametests.allspecieshavelargerpotentialandcannotpropagate",
+    "wildfruitgametests.fallingdurianisamplifiedexactlyonce",
+    "wildfruitgametests.maturefruityieldseightfoldandimmaturefruitdoesnot",
+    "wildfruitgametests.nativereplenishmentusestwelveattemptswithoutmutatingworldgenconfig",
+    "wildfruitgametests.realforgeinteractioneventsrejectstockbutnotfoodorordinarysaplings",
+    "wildfruitgametests.resourcereloadpreservespolicyandleavesnostockrecipes",
+    "wildfruitgametests.rootidentityprotectssharedandstrippedbranchesbutnotordinarytrees"
+  ]
+}

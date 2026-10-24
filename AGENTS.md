@@ -44,9 +44,11 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
   actual fruit; preserve live typed authority, derived single-path envelope and hydrated native crown.
   V9 measures `native_upturned_four_arm_v1` for cactus, `native_coconut_fruiting_crown_v1` for coconut
   and native maximum trunk radius for ancient; separate admission permits only these four Source entries.
-  Measurements never automatically admit references; never use a plateau/cap or substitute native rates
-  or invented pulses. No builds/tests/native
-  diagnostics, deployment, refresh, packaging or cleanup are authorized by this source-only work.
+  Historical measurements never automatically admit new references. The adult-size/manual-pulse
+  calibration test category, including these optional endpoint probes, is now retired by explicit
+  user direction. Do not launch or restore it. Preserve existing production references/rates and
+  retained history. Shared standing build/release authorization remains in force for functional
+  verification and stable Dist delivery; this retirement is not a source-only approval hold.
 - Fruits Delight `fruitsdelight:lemon_tree` has mining-only protection: minimum hardness 80
   and the existing diamond-or-better axe gate, at every age and on both halves. Keep it out
   of the managed berry selectors; native planting, geometry, harvest/loot, growth/bonemeal,
@@ -58,18 +60,20 @@ Forge 1.20.1 / Java 17; mod ID `better_wild_fruit_trees`.
   day-thirty event or automatic fertility supply. Keep full-size energy/taper from the first pulse,
   JoCode/InflatorNode getters and generated size/soil native, ordinary rates untouched, and native
   seasonal/explicit boosts proportional. Native canopy can continue filling after the adult-trunk
-  reference; no guaranteed physical maximum/deadline. Verify real native pulse frequency and seeded
-  fresh growth, not just rate arithmetic. Only fruit credit is persisted through explicit owned-key
+  reference; no guaranteed physical maximum/deadline. Verify real native pulse frequency, constant
+  rate/energy/taper and persistence; adult-size/manual-pulse reference calibration is retired, not
+  weakened or deemed passing. Only fruit credit is persisted through explicit owned-key
   hooks because the pinned species entity skips Forge's superclass serializer; test fresh entities.
 - Native API/mixin targets are pinned to DT 1.4.10, DT Fruits Delight 1.0.0 and Fruits Delight 1.1.3.
   Optional TConstruct public APIs are pinned to 3.11.2.166 / Mantle 1.11.104. Optional tree
   adapters are pinned to DT Plus 1.2.2, DT Nature's Spirit 1.3/Nature's Spirit 2.2.5 and DT Quark
   2.5.3/Quark 4.0-462, with fixture dependencies declared by immutable Curse Maven file IDs.
   Changing a pin requires native tests; do not relax required injections to accommodate drift.
-- Once separately authorized and calibration-complete, default native verification includes
-  TConstruct, Ars and the three optional tree addons. The main gate requires exactly 26 tests,
-  including the lemon pair and seven authored optional contracts. The isolated
-  `-PoptionalGrowthCalibration runGameTestServer` diagnostic is not that gate. Additionally run
+- Default native functional verification includes TConstruct, Ars and the three optional tree
+  addons. The main gate requires exactly 25 tests, including the lemon pair and seven authored
+  optional contracts. Native cadence/rate/persistence cases remain, but neither their embedded
+  optional adult-size probes nor legacy/v2 adult-size calibration remain active. All old
+  calibration/diagnostic Gradle properties are rejected before attempt allocation. Additionally run
   the full gate with `-PwithoutTConFixture -PwithoutArsFixture -PwithoutWildAddonsFixture` for
   absent-mod class-loading safety; native fixtures assert requested presence, not silent skips.
 

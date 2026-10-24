@@ -90,8 +90,8 @@ class DiagnosticGateTest(unittest.TestCase):
         self.assertTrue(check_log("All 17 required tests passed"))
         self.assertTrue(check_log("All 18 required tests passed"))
         self.assertTrue(check_log("All 19 required tests passed"))
-        self.assertTrue(check_log("All 25 required tests passed"))
-        self.assertFalse(check_log("All 26 required tests passed"))
+        self.assertTrue(check_log("All 26 required tests passed"))
+        self.assertFalse(check_log("All 25 required tests passed"))
 
     def test_known_launcher_warning_only_at_warn(self):
         text = "[12:00:00] [main/WARN] [ne.mi.ja.se.JarSelector/]: Attempted to select two dependency jars from JarJar which have the same identification: Mod File:  and Mod File: . Using Mod File: "
@@ -101,7 +101,7 @@ class DiagnosticGateTest(unittest.TestCase):
     def test_unknown_warnings_never_gate_by_count_but_errors_block(self):
         for severity in ['WARN', 'ERROR', 'FATAL']:
             record = f'[12:00:00] [Server thread/{severity}] [minecraft/Test]: unexpected'
-            text = (record + '\n') * 20 + 'All 26 required tests passed'
+            text = (record + '\n') * 20 + 'All 25 required tests passed'
             self.assertEqual(severity != 'WARN', bool(check_log(text)))
             rows = classify_log(text)
             self.assertEqual(20, len(rows))
@@ -113,17 +113,17 @@ class DiagnosticGateTest(unittest.TestCase):
         for severity in ['INFO', 'WARN', 'ERROR', 'FATAL']:
             for message in ['Failed to save chunk', 'Could not decode recipe', 'AssertionError: test failed',
                             "Couldn't load tag", 'Unable to reload resources', 'java.lang.IllegalStateException: crash']:
-                text = f'[12:00:00] [Server thread/{severity}] [any/Logger]: {message}\nAll 26 required tests passed'
+                text = f'[12:00:00] [Server thread/{severity}] [any/Logger]: {message}\nAll 25 required tests passed'
                 self.assertTrue(check_log(text))
                 self.assertTrue(classify_log(text)[0]['blocking'])
-        self.assertTrue(check_log('ERROR unstructured crash\nAll 26 required tests passed'))
+        self.assertTrue(check_log('ERROR unstructured crash\nAll 25 required tests passed'))
 
     def test_warning_label_never_applies_to_error_or_other_logger(self):
         record = '[12:00:00] [main/WARN] [ne.mi.ja.se.JarSelector/]: Attempted to select two dependency jars from JarJar which have the same identification: Mod File:  and Mod File: . Using Mod File: '
         self.assertEqual('native_bootstrap', classify_log(record)[0]['category'])
         self.assertEqual('unclassified', classify_log(record.replace('ne.mi.ja.se.JarSelector/', 'other/'))[0]['category'])
         error = record.replace('/WARN]', '/ERROR]')
-        self.assertTrue(check_log(error + '\nAll 26 required tests passed'))
+        self.assertTrue(check_log(error + '\nAll 25 required tests passed'))
         self.assertNotEqual('native_bootstrap', classify_log(error)[0]['category'])
 
     def test_canonical_file_logger_is_equivalent_but_unrelated_class_is_not(self):

@@ -1,4 +1,8 @@
-# Native cactus adult-architecture reference
+# Native cactus adult-architecture reference — calibration RETIRED
+
+> Historical endpoint design, not an active calibration gate. Explicit user retirement prohibits
+> further adult-size/manual-pulse reference campaigns. Native product/geometry functional tests
+> and existing production references remain unchanged.
 
 This subject owns the nonshipping growth-calibration endpoint for protected saguaro and
 **proven same-root saguaro-origin mega** forms. `gametest/CactusArchitecture.java` defines

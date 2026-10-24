@@ -1,4 +1,7 @@
-# Explicit kiwi-v1 ordered observation — SOURCE implementation, native pending
+# Explicit kiwi-v1 ordered observation — RETIRED
+
+> Historical calibration diagnostic only. Explicit user retirement prohibits further launches or
+> treating the following protocol as an active gate. Source and evidence remain retained.
 
 This is missing-input capture for the unchanged `nativeFreshGrowthCalibration`, **not** a
 fixture repair, default-26 qualification, light fence, new reference or stability verdict.

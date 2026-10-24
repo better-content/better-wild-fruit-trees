@@ -195,7 +195,7 @@ def controls(processor=None):
         write('org.spongepowered.asm.mixin.injection.callback.CallbackInfo', 'public class CallbackInfo {}')
         write('org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable', 'public class CallbackInfoReturnable<T> extends CallbackInfo {private final T value; public CallbackInfoReturnable(String name, boolean cancellable, T v){value=v;} public T getReturnValue(){ return value; } }')
     sources += sorted((ROOT/'src/nativeProbe/java').rglob('*.java'))
-    sources += [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java', ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OrderedEvents.java', ROOT/'scripts/NativeLightTraceSelfTest.java', ROOT/'scripts/StateCodebookSelfTest.java']
+    sources += [ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalTraceProfile.java', ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OriginalLightTrace.java', ROOT/'src/main/java/com/bettercontent/betterwildfruittrees/gametest/OrderedEvents.java', ROOT/'scripts/NativeLightTraceSelfTest.java', ROOT/'scripts/StateCodebookSelfTest.java', ROOT/'scripts/KiwiStateSelectionSelfTest.java']
     classes = out/'classes'
     classes.mkdir()
     command = ['javac', '--release', '17', '-d', str(classes)]
@@ -213,7 +213,7 @@ def controls(processor=None):
     check_reserved_namespace(classes)
     check_codebook_subscriber(classes)
     runtime = str(classes) + (':'+str(processor) if processor else '')
-    for name in ('NativeLightTraceSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.StateCodebookSelfTest'):
+    for name in ('NativeLightTraceSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.StateCodebookSelfTest', 'com.bettercontent.betterwildfruittrees.gametest.KiwiStateSelectionSelfTest'):
         result = subprocess.run(['java', '-cp', runtime, name, str(out)], capture_output=True, text=True, timeout=15)
         (out/(name.rsplit('.', 1)[-1]+'.log')).write_text(result.stdout+result.stderr)
         assert result.returncode == 0, result.stderr

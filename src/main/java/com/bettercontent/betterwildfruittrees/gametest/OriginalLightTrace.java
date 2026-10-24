@@ -22,8 +22,9 @@ public final class OriginalLightTrace {
 
     public static void begin(String fruit, int sample) {
         if (!Boolean.getBoolean("better_wild_fruit_trees.growthDiagnostics")) return;
-        // Only the original eight orange samples. No world/registry/codec references.
-        if (fruit.equals("orange") && sample >= 0 && sample < 8) {
+        // Default/orange-v1 remains the original eight orange samples. Explicit kiwi-v1
+        // observes only its eight original samples; no fixture/body or native hook changes.
+        if (fruit.equals(OriginalTraceProfile.species()) && sample >= 0 && sample < 8) {
             Session s = new Session(sample);
             OrderedEvents.begin(sample);
             s.orderedScope = OrderedEvents.scopeToken();
@@ -109,6 +110,7 @@ public final class OriginalLightTrace {
     private static final class Session {
         final long owner = Thread.currentThread().getId();
         final int sample;
+        final String observedSpecies = OriginalTraceProfile.species();
         Object orderedScope;
         volatile int pulse;
         final AtomicBoolean overflow = new AtomicBoolean();
@@ -162,7 +164,8 @@ public final class OriginalLightTrace {
         void print() {
             System.out.println("ORIGINAL_LIGHT_TRACE sample=" + sample + " pulses=" + pulse
                 + " diagnosticOnly=true overflow=" + overflow.get() + " canonicalIncomplete=" + canonicalIncomplete
-                + " detachedNoBarrier=true identityHashesMayCollide=true publicationVersion=postPutfieldObservationNotMapGeneration");
+                + " detachedNoBarrier=true identityHashesMayCollide=true publicationVersion=postPutfieldObservationNotMapGeneration"
+                + (observedSpecies.equals("kiwi") ? " observedSpecies=kiwi dictScope=original-kiwi-blocks-v1" : ""));
             for (int p = 1; p <= pulse; p++) {
                 System.out.println("ORIGINAL_LIGHT_PULSE sample=" + sample + " pulse=" + p
                     + " countsSkyCanSeeBrightnessAdequateWrite=" + java.util.Arrays.toString(counts[p])

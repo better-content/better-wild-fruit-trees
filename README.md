@@ -405,6 +405,9 @@ authored Mixin config on the native run (Root attaches before MixinGradle adds t
 Every original SDK/authored argument and its order remains exact. Ordinary runs retain their
 original sources/arguments; all unrelated additions remain rejected. Root's SDK, fresh-health and archive-byte guards remain
 mandatory; this allowance neither ships observers nor changes the 26 native tests or tick caps.
+The distinct explicit [kiwi-v1 ordered observation](docs/kiwi-light-trace-v1.md) captures missing
+kiwi history through the unchanged fixture callbacks. It preserves orange-v1/default isolation,
+requires same-profile comparisons, and is not a protocol repair or default/native qualification.
 The source gate also covers normalized native bush growth/harvest statistics, exact rate math,
 real native tree placement through exposed versus occluded dynamic foliage, success-only credit,
 160-item replacement accounting, all protected species' persistent root ownership and native

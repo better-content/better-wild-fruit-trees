@@ -17,12 +17,17 @@ require(!lightQueueProofEnabled || listOf("optionalGrowthCalibration", "withoutT
 val originalEventTraceValue = providers.gradleProperty("originalEventTrace").orNull
 require(originalEventTraceValue == null || originalEventTraceValue in setOf("true", "false")) { "originalEventTrace must be true or false" }
 val originalEventTrace = originalEventTraceValue == "true"
+val originalEventTraceScopeValue = providers.gradleProperty("originalEventTraceScope").orNull
+require(originalEventTraceScopeValue == null || originalEventTraceScopeValue in setOf("orange-v1", "kiwi-v1")) { "Unknown ordered observation scope" }
+require(originalEventTraceScopeValue == null || originalEventTrace) { "Ordered scope requires explicit originalEventTrace=true" }
+val originalEventTraceScope = originalEventTraceScopeValue ?: "orange-v1"
 require(!lightQueueProofEnabled || !originalEventTrace) { "Queue proof and original ordered growth profile are separate experiments" }
 val growthDiagnosticsValue = providers.gradleProperty("growthDiagnostics").orNull
 require(growthDiagnosticsValue == null || growthDiagnosticsValue in setOf("true", "false")) { "growthDiagnostics must be true or false" }
 require(growthDiagnosticsValue != "false" || (!originalEventTrace && !lightQueueProofEnabled)) { "Explicit diagnostic profiles cannot disable growthDiagnostics" }
 val growthDiagnosticsEnabled = growthDiagnosticsValue == "true" || originalEventTrace || lightQueueProofEnabled
 val calibrationEnabled = project.hasProperty("optionalGrowthCalibration")
+require(originalEventTraceScope != "kiwi-v1" || !calibrationEnabled) { "Kiwi observation requires the original main26 fixture" }
 val calibrationForms = providers.gradleProperty("optionalGrowthCalibrationForms").orNull ?: "all"
 require(calibrationForms in setOf("all", "ancient", "saguaro,saguaro_mega")) { "Unknown/empty/duplicate calibration profile" }
 require(!project.hasProperty("optionalGrowthCalibrationForms") || calibrationEnabled) { "Form selection requires the diagnostic profile" }
@@ -76,7 +81,10 @@ minecraft {
                 property("better_wild_fruit_trees.lightQueueProof", "true")
             }
             workingDirectory(nativeAttempt)
-            if (originalEventTrace) property("better_wild_fruit_trees.originalEventTrace", "true")
+            if (originalEventTrace) {
+                property("better_wild_fruit_trees.originalEventTrace", "true")
+                property("better_wild_fruit_trees.originalEventTraceScope", originalEventTraceScope)
+            }
             property("forge.enabledGameTestNamespaces", if (calibrationEnabled)
                 "better_wild_fruit_calibration" else "better_wild_fruit_trees")
             if (calibrationEnabled) property("better_wild_fruit_trees.calibration.forms", calibrationForms)
@@ -280,6 +288,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
             check((run.properties["better_wild_fruit_trees.calibration.forms"] != null) == (native && calibrationEnabled)) { "Calibration property escaped native diagnostic RunConfig" }
             check(run.properties["better_wild_fruit_trees.lightQueueProof"] == if (native && lightQueueProofEnabled) "true" else null) { "Queue proof flag escaped native RunConfig" }
             check(run.properties["better_wild_fruit_trees.originalEventTrace"] == if (native && originalEventTrace) "true" else null) { "Ordered observation flag escaped native RunConfig" }
+            check(run.properties["better_wild_fruit_trees.originalEventTraceScope"] == if (native && originalEventTrace) originalEventTraceScope else null) { "Ordered observation scope escaped native RunConfig" }
             check(run.properties["better_wild_fruit_trees.growthDiagnostics"] == if (native && growthDiagnosticsEnabled) "true" else null) { "Growth diagnostics escaped native opt-in RunConfig" }
             val expectedSources = mutableSetOf(sourceSets.main.get())
             if (native && growthDiagnosticsEnabled) expectedSources.add(nativeProbe)
@@ -331,6 +340,7 @@ val verifyCalibrationRunConfigGuard by tasks.registering {
                 receipt.setProperty("actualNamespace", run.properties["forge.enabledGameTestNamespaces"].toString())
                 receipt.setProperty("actualArgs", run.args.joinToString(" "))
                 receipt.setProperty("growthDiagnostics", growthDiagnosticsEnabled.toString())
+                receipt.setProperty("originalEventTraceScope", if (originalEventTrace) originalEventTraceScope else "NONE")
                 receipt.setProperty("actualAllSourceSets", run.allSources.map { it.name }.distinct().sorted().joinToString(","))
                 receipt.setProperty("actualDiagnosticMixin", if (growthDiagnosticsEnabled) "better_wild_fruit_trees.native-light.mixins.json" else "NONE")
                 receipt.setProperty("profile", if (lightQueueProofEnabled) "light-queue-proof-v1-required29" else if (calibrationEnabled) calibrationForms else "main26")
@@ -422,7 +432,9 @@ val prepareOriginalEventBindings by tasks.registering {
         val binding = Properties()
         binding.setProperty("nonce", nativeAttemptId)
         binding.setProperty("attemptDirectory", nativeAttempt.canonicalPath)
-        binding.setProperty("profile", (if (calibrationEnabled) calibrationForms else "main26") + ":tcon=" + !project.hasProperty("withoutTConFixture") + ":ars=" + !project.hasProperty("withoutArsFixture") + ":wild=" + !project.hasProperty("withoutWildAddonsFixture"))
+        binding.setProperty("profile", (if (calibrationEnabled) calibrationForms else "main26") + ":tcon=" + !project.hasProperty("withoutTConFixture") + ":ars=" + !project.hasProperty("withoutArsFixture") + ":wild=" + !project.hasProperty("withoutWildAddonsFixture") + if (originalEventTraceScope == "kiwi-v1") ":traceScope=kiwi-v1" else "")
+        binding.setProperty("traceScope", originalEventTraceScope)
+        binding.setProperty("observedSpecies", if (originalEventTraceScope == "kiwi-v1") "kiwi" else "orange")
         binding.setProperty("sourceCommit", git("rev-parse", "HEAD"))
         binding.setProperty("sourceDirty", (git("status", "--porcelain").isNotEmpty()).toString())
         binding.setProperty("classHashSetSha256", sha(manifest))

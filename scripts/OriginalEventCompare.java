@@ -10,6 +10,10 @@ import java.util.regex.Pattern;
 public final class OriginalEventCompare {
     static String hash(Path p)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(p)));}
     static void completion(OrderedEvents.Capture capture,Path trace,Path log,String expected)throws Exception{
+        completion(capture,trace,log,expected,"orange");
+    }
+    static void completion(OrderedEvents.Capture capture,Path trace,Path log,String expected,String species)throws Exception{
+        if(!species.equals("orange")&&!species.equals("kiwi"))throw new IOException("unsupported observed species");
         if(!expected.matches("[a-f0-9]{64}")||!hash(log).equals(expected))throw new IOException("retained log SHA mismatch");
         Properties p=capture.metadata();Path attempt=trace.toAbsolutePath().normalize().getParent().getParent();
         if(!attempt.getFileName().toString().equals(p.getProperty("nonce"))||!attempt.toString().equals(p.getProperty("attemptDirectory")))throw new IOException("nonce directory binding");
@@ -25,7 +29,7 @@ public final class OriginalEventCompare {
         String receipt=receiptPrefix+"sha256="+hash(trace)+" records="+capture.count()
             +" workerRecords="+p.getProperty("workerRecordCount", "missing")+" incomplete=false scopeOutcome=UNPROVEN";
         Pattern receiptPattern=Pattern.compile("(?:^|.*\\s)"+Pattern.quote(receipt)+"\\s*$");
-        String marker="GROWTH_SAMPLE orange seed="+p.getProperty("sample")+" pulses="+p.getProperty("lastPulse");
+        String marker="GROWTH_SAMPLE "+species+" seed="+p.getProperty("sample")+" pulses="+p.getProperty("lastPulse");
         Pattern markerPattern=Pattern.compile("(?:^|.*\\s)"+Pattern.quote(marker)+"\\s*$");
         int receipts=0,markers=0,receiptLine=-1,markerLine=-1,index=0;
         for(String line:Files.readAllLines(log)){

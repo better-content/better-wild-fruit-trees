@@ -15,6 +15,9 @@ import java.util.Set;
 public final class NativeStateCodes {
     public static final String SCOPE = "original-orange-blocks-v1";
     private static final Set<String> NATIVE_KEYS = Set.of("dynamictrees:rooty_dirt", "dynamictrees:oak_branch", "dtfruitsdelight:orange_leaves");
+    // DISTINCT opt-in dictionary; never silently widen original-orange-blocks-v1.
+    private static final Set<String> KIWI_KEYS = Set.of("dynamictrees:rooty_dirt", "dynamictrees:jungle_branch", "dtfruitsdelight:kiwi_leaves");
+    private static Set<String> requiredKeys() { return OriginalTraceProfile.kiwi() ? KIWI_KEYS : NATIVE_KEYS; }
     private static volatile StateCodebook<BlockState> book;
     private NativeStateCodes() {}
 
@@ -37,19 +40,19 @@ public final class NativeStateCodes {
                 }
             }
             StateCodebook<BlockState> frozen = builder.freeze();
-            boolean scopeComplete = frozen.excess == 0 && selectedKeys.containsAll(NATIVE_KEYS);
+            boolean scopeComplete = frozen.excess == 0 && selectedKeys.containsAll(requiredKeys());
             boolean complete = frozen.complete && scopeComplete;
             book = complete ? frozen : null;
             OriginalLightTrace.stateCodesReady(complete);
             configureEvents(frozen, complete);
             System.out.println("ORIGINAL_STATE_CODEBOOK schema=" + StateCodebook.SCHEMA + " entries=" + frozen.entries
-                + " complete=" + complete + " scope=" + SCOPE + " scopeComplete=" + scopeComplete
+                + " complete=" + complete + " scope=" + OriginalTraceProfile.scope() + " scopeComplete=" + scopeComplete
                 + " selectedBlockKeys=" + selectedKeys + " collisionsOrInvalid=" + frozen.collisions + " excess=" + frozen.excess
                 + " digest=" + frozen.digest + " nullCode=0 unknownCode=" + StateCodebook.UNKNOWN);
         } catch (RuntimeException incomplete) {
             book = null;
             OriginalLightTrace.stateCodesReady(false);
-            System.out.println("ORIGINAL_STATE_CODEBOOK schema=" + StateCodebook.SCHEMA + " scope=" + SCOPE + " selectedBlockKeys=unavailable digest=unavailable complete=false reason=" + incomplete.getClass().getName());
+            System.out.println("ORIGINAL_STATE_CODEBOOK schema=" + StateCodebook.SCHEMA + " scope=" + OriginalTraceProfile.scope() + " selectedBlockKeys=unavailable digest=unavailable complete=false reason=" + incomplete.getClass().getName());
         }
     }
     private static void configureEvents(StateCodebook<BlockState> frozen, boolean complete) {
@@ -60,7 +63,8 @@ public final class NativeStateCodes {
             properties.load(input);
         } catch (java.io.IOException | RuntimeException missing) { properties.setProperty("bindingError", missing.getClass().getName()); }
         properties.setProperty("dictSchema", StateCodebook.SCHEMA);
-        properties.setProperty("dictScope", SCOPE);
+        properties.setProperty("dictScope", OriginalTraceProfile.scope());
+        properties.setProperty("observedSpecies", OriginalTraceProfile.species());
         properties.setProperty("dictDigest", frozen.digest);
         properties.setProperty("dictComplete", Boolean.toString(complete));
         OrderedEvents.configure(true, attempt.resolve("original-events"), properties);
@@ -69,7 +73,7 @@ public final class NativeStateCodes {
         if (key == null) return false;
         int colon = key.indexOf(':');
         if (colon <= 0 || colon != key.lastIndexOf(':') || colon == key.length() - 1) return false;
-        return key.substring(0, colon).equals("minecraft") || NATIVE_KEYS.contains(key);
+        return key.substring(0, colon).equals("minecraft") || requiredKeys().contains(key);
     }
     @SuppressWarnings("unchecked")
     private static <T extends Comparable<T>> String value(Property<T> property, Comparable<?> value) {

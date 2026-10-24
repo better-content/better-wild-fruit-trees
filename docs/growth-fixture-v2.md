@@ -111,6 +111,19 @@ ticket release is independently attempted; failed leases remain dirty. Environme
 attempted despite a sample cleanup failure. Unowned actors/state are not deleted. Worlds, outputs,
 failed evidence and original v1 failures remain retained across handoffs under shared policy.
 
+Cleanup uses a separately controlled synchronous port: disarm first; check foreign actors; clear
+owned crown-to-root blocks and independently attempt both scheduled-tick stores; **then** drain
+owned entity UUIDs, including joins caused by those clears or by another owned discard. Failed
+leases remain dirty and are not retried in that invocation; new reentrant leases are attempted.
+An abnormal cascade exceeding4096 distinct entity releases fails closed, never fabricates clean
+state or waits for ticks. Entity draining also runs when partial cleanup already released plot
+ownership. Foreign actors are never discarded, are rechecked before marking clean, and contamination
+remains a failure. All tickets are attempted independently. A `CLEANUP` receipt binds before/after
+owned IDs, ticket coordinates/counts and plot state; successful endpoint rows require a properly
+ordered post-admission cleanup with every owned container empty. Dirty preparation/restoration
+errors name the exact containers/IDs. Controlled tests reproduce the old drain-before-clear bug,
+partial failures, reentrant disposal and preservation of foreign actors. They are not native proof.
+
 ## Evidence and finite admission
 
 Pre-run clean-source bindings include both source heads, compiled-class and actual runtime-input
@@ -128,4 +141,8 @@ defect. Only if both pass, run exactly three fresh full worlds per profile, then
 native designated-failure controls once each. No replacement trials, pooling away failures,
 recalibration, arbitrary sleep, guessed fence or Debug. Promotion requires every gate separately;
 then default/version/schema/provider fingerprints and docs change together and fresh canonical
-qualification is mandatory. Otherwise retain a bounded actionable defect report and stop retries.
+qualification is mandatory. Otherwise retain a bounded actionable defect report and terminate that
+native campaign without replacement trials. This is not project completion: continue a causally
+corrected source/control cycle toward stable Dist, preserving the failed campaign; only validated,
+clean changed inputs and a new explicit finite preregistration admit a later native campaign.
+Unchanged retries, weakened assertions or quiet reference changes are never an allowed repair.

@@ -30,6 +30,7 @@ def synthetic():
             emit('ADMIT',dict(sample=sample,tick=tick+2,day=6000,growthSeed=12345+104729*seed,worldSeed=54321+104729*seed,fertility=15,setupDurationNs=10))
             if fruit=='bayberry' and seed==0:
                 emit('ISOLATION_CONTROL',dict(ownedCancelled=1,unrelatedOriginalReturned=1,measurementAlreadyEnded=True,gateDisarmed=True,tick=tick+3+pulses))
+            emit('CLEANUP',dict(sample=sample,before=dict(plotOwned=True,ticketCount=36,ownedEntityCount=0,tickets=[],ownedEntityIds=[]),after=dict(plotOwned=False,ticketCount=0,ownedEntityCount=0,tickets=[],ownedEntityIds=[]),durationNs=5,failure='NONE'))
             emit('SAMPLE',dict(result=dict(sample=sample,status='PASS',pulses=pulses,radius=8,endpoint=8,startTick=tick,admissionTick=tick+2,endTick=tick+2+pulses,reason='NATIVE_MAX_TRUNK_RADIUS'),
                                position=[48,160,48],admissionDay=6000,terminalDay=6000,measurementDurationNs=20,cleanupDurationNs=5,
                                nativeCalls=dict(grow=pulses,age=pulses//16,worldSeedCalls=1,firstPulseTick=tick+3,lastPulseTick=tick+2+pulses,maximumGapTicks=1)))
@@ -40,6 +41,24 @@ def synthetic():
     return rows
 
 class GrowthV2Test(unittest.TestCase):
+    def test_actual_cleanup_reentrant_entity_release_and_partial_exception_controls(self):
+        out=ROOT/'build/growth-cleanup-controls'/str(uuid.uuid4());out.mkdir(parents=True)
+        p=subprocess.run(['javac','--release','17','-d',str(out),str(PKG/'GrowthPlotCleanup.java'),str(PKG/'GrowthOwnedResources.java'),str(ROOT/'scripts/GrowthCleanupSelfTest.java')],capture_output=True,text=True,timeout=30)
+        self.assertEqual(0,p.returncode,p.stdout+p.stderr)
+        p=subprocess.run(['java','-ea','-cp',str(out),'GrowthCleanupSelfTest'],capture_output=True,text=True,timeout=30)
+        (out/'result.log').write_text(p.stdout+p.stderr);self.assertEqual(0,p.returncode,p.stdout+p.stderr)
+        rows=synthetic();next(x for x in rows if x['type']=='CLEANUP')['data']['after']['ownedEntityCount']=1
+        with self.assertRaises(AssertionError):validate_rows(rows,'prototype',PROFILE)
+        rows=synthetic();next(x for x in rows if x['type']=='CLEANUP')['data']['failure']='dirty entities'
+        with self.assertRaises(AssertionError):validate_rows(rows,'prototype',PROFILE)
+        for target in ('PREPARE','ADMIT'):
+            rows=synthetic();clean=next(x for x in rows if x['type']=='CLEANUP');rows.remove(clean)
+            rows.insert(next(i for i,x in enumerate(rows) if x['type']==target),clean)
+            with self.assertRaises(AssertionError):validate_rows(rows,'prototype',PROFILE)
+        rows=synthetic();future=next(x for x in rows if x['type']=='CLEANUP' and x['data']['sample']['seed']==1);rows.remove(future)
+        rows.insert(next(i for i,x in enumerate(rows) if x['type']=='CLEANUP'),future)
+        with self.assertRaises(AssertionError):validate_rows(rows,'prototype',PROFILE)
+
     def test_controller_real_jdk_transitions_containment_and_independent_aggregation(self):
         out=ROOT/'build/growth-controller-controls'/str(uuid.uuid4());out.mkdir(parents=True)
         p=subprocess.run(['javac','--release','17','-d',str(out),str(PKG/'GrowthFixtureController.java'),str(PKG/'GrowthRootIsolation.java'),str(PKG/'GrowthTickingReadiness.java'),str(PKG/'GrowthOwnedResources.java'),str(ROOT/'scripts/GrowthControllerSelfTest.java')],capture_output=True,text=True,timeout=30)

@@ -135,7 +135,7 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
         setupNanos = System.nanoTime(); admittedNanos = 0; cleanupNanos = 0;
         growCalls = ageCalls = autonomousBlocked = 0; firstPulseTick = lastPulseTick = maxPulseGap = pulseTickDigest = 0;
         isolation.disarm(); expectedRootBlock = null; contamination = null;
-        if (!tickets.isEmpty() || plotOwned || !ownedEntities.isEmpty()) throw new IllegalStateException("Prior sample ownership not clean");
+        if (!tickets.isEmpty() || plotOwned || !ownedEntities.isEmpty()) throw new IllegalStateException("Prior sample ownership not clean: " + ownershipSnapshot());
         for (int x = MIN.getX() >> 4; x <= MAX.getX() >> 4; x++) for (int z = MIN.getZ() >> 4; z <= MAX.getZ() >> 4; z++) {
             var chunk = new ChunkPos(x, z);
             level.getChunkSource().addRegionTicket(TICKET, chunk, 2, owner, true);
@@ -277,12 +277,7 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
             if (entity instanceof FallingTreeEntity || entity instanceof ItemEntity) fixture.ownedEntities.add(entity.getUUID());
         }
     }
-    @Override public void cleanup(GrowthFixtureController.Sample sample) {
-        isolation.disarm(); // FIRST, including cancellation/failure; stale callbacks cannot retain it.
-        long before = System.nanoTime();
-        Throwable failure = contamination == null ? null : new IllegalStateException(contamination);
-        try {
-            if (plotOwned) {
+    private void forwardingControl() {
                 // A deliberate transformed unrelated-root forwarding check AFTER measurement only.
                 // Its own native changes are cleaned below; it adds no measured growth opportunity.
                 if (!isolationControlDone && admittedNanos != 0) {
@@ -302,25 +297,73 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
                     emit("ISOLATION_CONTROL", Map.of("ownedCancelled", 1, "unrelatedOriginalReturned", 1,
                         "measurementAlreadyEnded", true, "gateDisarmed", !isolation.admitted(), "tick", tick()));
                 }
-                for (var entity : level.getEntities((Entity)null, DOMAIN, e -> true))
-                    if (!ownedEntities.contains(entity.getUUID())) throw new IllegalStateException("Foreign entity contaminated owned plot");
-                for (UUID id : ownedEntities) { var entity = level.getEntity(id); if (entity != null) entity.discard(); }
-                ownedEntities.clear();
-                for (var pos : BlockPos.betweenClosed(MIN, MAX)) if (!level.isEmptyBlock(pos)) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
-                var box = new BoundingBox(MIN.getX(), MIN.getY(), MIN.getZ(), MAX.getX(), MAX.getY(), MAX.getZ());
-                level.getBlockTicks().clearArea(box); level.getFluidTicks().clearArea(box);
-                for (var pos : BlockPos.betweenClosed(MIN, MAX)) if (!level.isEmptyBlock(pos)) throw new IllegalStateException("Owned plot cleanup failed");
-                plotOwned = false;
-            }
-        } catch (Throwable cleanup) { if (failure == null) failure = cleanup; else failure.addSuppressed(cleanup); }
-        // Independently attempt EVERY owned release even after a previous release throws. Only
-        // failed tickets remain dirty; no global forced-chunk toggle or foreign ticket removal.
-        Throwable release = GrowthOwnedResources.releaseAll(tickets, chunk -> level.getChunkSource().removeRegionTicket(TICKET, chunk, 2, owner, true));
-        if (release != null) { if (failure == null) failure = release; else if (failure != release) failure.addSuppressed(release); }
-        cleanupNanos = System.nanoTime() - before;
+    }
+    private Map<String,Object> ownershipSnapshot() {
+        return Map.of("plotOwned", plotOwned, "ticketCount", tickets.size(), "tickets", tickets.stream().map(Object::toString).toList(),
+            "ownedEntityCount", ownedEntities.size(), "ownedEntityIds", ownedEntities.stream().map(UUID::toString).sorted().toList());
+    }
+    private void checkForeignEntities() {
+        if (!plotOwned) return; // Do not claim or dispose a plot already released by partial cleanup.
+        for (var entity : level.getEntities((Entity)null, DOMAIN, e -> true))
+            if (!ownedEntities.contains(entity.getUUID())) throw new IllegalStateException("Foreign entity contaminated owned plot: " + entity.getType() + "/" + entity.getUUID());
+    }
+    private static void rethrowCleanup(Throwable failure) {
         if (failure instanceof RuntimeException runtime) throw runtime;
         if (failure instanceof Error error) throw error;
         if (failure != null) throw new IllegalStateException(failure);
+    }
+    @Override public void cleanup(GrowthFixtureController.Sample sample) {
+        isolation.disarm(); // FIRST, including cancellation/failure; stale callbacks cannot retain it.
+        long before = System.nanoTime();
+        var initial = ownershipSnapshot();
+        Throwable failure = GrowthPlotCleanup.run(new GrowthPlotCleanup.Port() {
+            public boolean plotOwned() { return GrowthFixtureV2.this.plotOwned; }
+            public void checkForeignEntities() { GrowthFixtureV2.this.checkForeignEntities(); }
+            public void beforeClear() { forwardingControl(); }
+            public void clearBlocks() {
+                // Clear crown before root: native on-remove effects remain native and any joined
+                // owned entity stays tracked until the AFTER-clear drain below.
+                for (int y = MAX.getY(); y >= MIN.getY(); y--)
+                    for (var pos : BlockPos.betweenClosed(MIN.getX(), y, MIN.getZ(), MAX.getX(), y, MAX.getZ()))
+                        if (!level.isEmptyBlock(pos)) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+            }
+            public void clearScheduledTicks() {
+                var box = new BoundingBox(MIN.getX(), MIN.getY(), MIN.getZ(), MAX.getX(), MAX.getY(), MAX.getZ());
+                Throwable tickFailure = null;
+                try { level.getBlockTicks().clearArea(box); } catch (Throwable blockTicks) { tickFailure = blockTicks; }
+                try { level.getFluidTicks().clearArea(box); }
+                catch (Throwable fluidTicks) { if (tickFailure == null) tickFailure = fluidTicks; else if (tickFailure != fluidTicks) tickFailure.addSuppressed(fluidTicks); }
+                rethrowCleanup(tickFailure);
+            }
+            public void drainOwnedEntities() {
+                rethrowCleanup(GrowthOwnedResources.drain(ownedEntities, id -> {
+                    var entity = level.getEntity(id);
+                    if (entity != null) {
+                        entity.discard();
+                        if (!entity.isRemoved()) throw new IllegalStateException("Owned entity did not release: " + id);
+                    }
+                }));
+            }
+            public void verifyPlotAndEntitiesEmpty() {
+                checkForeignEntities();
+                if (plotOwned()) for (var pos : BlockPos.betweenClosed(MIN, MAX))
+                    if (!level.isEmptyBlock(pos)) throw new IllegalStateException("Owned block survived cleanup: " + pos);
+                if (!ownedEntities.isEmpty()) throw new IllegalStateException("Owned entities survived cleanup: " + ownershipSnapshot());
+            }
+            public void markPlotReleased() { GrowthFixtureV2.this.plotOwned = false; }
+            public void releaseTickets() {
+                rethrowCleanup(GrowthOwnedResources.releaseAll(tickets, chunk -> level.getChunkSource().removeRegionTicket(TICKET, chunk, 2, owner, true)));
+            }
+            public void verifyResourcesReleased() {
+                if (GrowthFixtureV2.this.plotOwned || !tickets.isEmpty() || !ownedEntities.isEmpty())
+                    throw new IllegalStateException("Unclosed cleanup resources: " + ownershipSnapshot());
+            }
+        }, contamination == null ? null : new IllegalStateException(contamination));
+        cleanupNanos = System.nanoTime() - before;
+        try { emit("CLEANUP", Map.of("sample", sample, "before", initial, "after", ownershipSnapshot(),
+            "durationNs", cleanupNanos, "failure", failure == null ? "NONE" : failure.toString())); }
+        catch (Throwable reporting) { if (failure == null) failure = reporting; else if (failure != reporting) failure.addSuppressed(reporting); }
+        rethrowCleanup(failure);
     }
     @Override public void outcome(GrowthFixtureController.Outcome result) {
         long now = System.nanoTime();
@@ -361,7 +404,7 @@ public final class GrowthFixtureV2 implements GrowthFixtureController.Backend {
             level.setDayTime(day); data.setClearWeatherTime(clearWeather); data.setRainTime(rainTime); data.setThunderTime(thunderTime);
             data.setRaining(raining); data.setThundering(thundering); level.updateSkyBrightness(); environmentOwned = false;
         }
-        if (dirty) throw new IllegalStateException("Unclosed sample resources");
+        if (dirty) throw new IllegalStateException("Unclosed sample resources: " + ownershipSnapshot());
     }
     @SubscribeEvent public static void stopping(ServerStoppingEvent event) {
         var fixture = active;

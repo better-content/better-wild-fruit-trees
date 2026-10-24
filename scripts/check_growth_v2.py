@@ -39,7 +39,7 @@ def read_rows(path):
     assert [x['sequence'] for x in rows] == list(range(len(rows))), 'Missing/duplicate/reordered receipt'
     assert rows[0]['type'] == 'HEADER' and rows[-1]['type'] == 'TERMINAL', 'Partial receipt'
     assert sum(x['type']=='HEADER' for x in rows)==1 and sum(x['type']=='TERMINAL' for x in rows)==1
-    assert all(x['type'] in {'HEADER','PREPARE','CONSTRUCT','SETUP_CHECK','ADMIT','SAMPLE','MEAN','ISOLATION_CONTROL','TERMINAL'} for x in rows)
+    assert all(x['type'] in {'HEADER','PREPARE','CONSTRUCT','SETUP_CHECK','ADMIT','SAMPLE','MEAN','ISOLATION_CONTROL','CLEANUP','TERMINAL'} for x in rows)
     return rows
 
 def validate_rows(rows, scope, profile, control='none', require_success=True):
@@ -59,7 +59,7 @@ def validate_rows(rows, scope, profile, control='none', require_success=True):
     expected=[(s,i) for s in species for i in range(8)]
     samples=[x['data'] for x in rows if x['type']=='SAMPLE']
     assert [(x['result']['sample']['species'],x['result']['sample']['seed']) for x in samples]==expected, 'Missing/duplicate sample coverage'
-    prepared={};constructed={};admitted={};checks=[];current=None;finished=set();mean_order=[];isolation_rows=[]
+    prepared={};constructed={};admitted={};checks=[];current=None;finished=set();mean_order=[];isolation_rows=[];cleaned={}
     for row in rows[1:-1]:
         kind,d=row['type'],row['data']
         if kind in ('PREPARE','CONSTRUCT','ADMIT'):
@@ -85,6 +85,9 @@ def validate_rows(rows, scope, profile, control='none', require_success=True):
             assert r['status'] in ('PASS','ASSERTION_FAILURE','INVALID_SETUP','INCOMPLETE')
             if r['status'] in ('PASS','ASSERTION_FAILURE'):
                 assert current==key and key in admitted and r['startTick']==prepared[key]['tick'] and r['admissionTick']==admitted[key]['tick']
+                assert key in cleaned and cleaned[key]['failure']=='NONE'
+                after=cleaned[key]['after'];assert after['plotOwned'] is False and after['ticketCount']==0 and after['ownedEntityCount']==0
+                assert after['tickets']==[] and after['ownedEntityIds']==[]
                 assert 1<=r['pulses']<=4096 and r['endpoint']==constructed[key]['endpoint'] and r['endTick']==r['admissionTick']+r['pulses']
                 assert d['position']==[48,160,48] and d['admissionDay']==d['terminalDay']==6000
                 calls=d['nativeCalls'];assert calls['grow']==r['pulses'] and calls['age']==r['pulses']//16 and calls['worldSeedCalls']==1
@@ -94,6 +97,12 @@ def validate_rows(rows, scope, profile, control='none', require_success=True):
                 else:assert r['pulses']==4096 and r['radius']!=r['endpoint']
             assert d['measurementDurationNs']>=0 and d['cleanupDurationNs']>=0
             current=None;checks=[]
+        elif kind=='CLEANUP':
+            key=(d['sample']['species'],d['sample']['seed'])
+            assert key in expected and key not in finished and key not in cleaned and d['durationNs']>=0
+            assert current==key or (current is None and key==expected[len(finished)] and not rows[-1]['data']['complete'])
+            if rows[-1]['data']['complete']:assert key in prepared and key in admitted
+            cleaned[key]=d
         elif kind=='MEAN':
             assert current is None and len(mean_order)<len(species) and d['species']==species[len(mean_order)]
             assert len(finished)==(len(mean_order)+1)*8

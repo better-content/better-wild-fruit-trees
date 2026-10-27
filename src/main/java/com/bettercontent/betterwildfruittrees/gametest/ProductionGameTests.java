@@ -30,20 +30,45 @@ public final class ProductionGameTests {
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void nativeBushGrowthAndHarvestMatchNormalizedRates(GameTestHelper h) {
         var level = h.getLevel();
-        var pos = h.absolutePos(new BlockPos(4, 2, 4));
+        // Use the existing native marker's illuminated corner; do not alter marker/structure blocks.
+        var pos = h.absolutePos(new BlockPos(0, 1, 1));
         level.setBlock(pos.below(), Blocks.GRASS_BLOCK.defaultBlockState(), 2);
-        level.setBlock(pos.above(2), Blocks.LIGHT.defaultBlockState(), 3);
         var player = FakePlayerFactory.getMinecraft(level);
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        h.runAfterDelay(10, () -> {
+        var lightPos = h.absolutePos(new BlockPos(-1, -1, -1));
+        h.startSequence().thenWaitUntil(() -> {
+            var lightState = level.getBlockState(lightPos);
+            var chunk = level.getChunkSource().getChunkNow(lightPos.getX() >> 4, lightPos.getZ() >> 4);
+            h.assertTrue(level.getRawBrightness(pos.above(), 0) >= 9,
+                    "Waiting for native bush light >=9 at " + pos.above() + " actual=" + level.getRawBrightness(pos.above(), 0)
+                            + " lightPos=" + lightPos + " lightState=" + lightState
+                            + " cachedEmission=" + lightState.getLightEmission() + " contextualEmission=" + lightState.getLightEmission(level, lightPos)
+                            + " blockAtSource=" + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, lightPos)
+                            + " blockAtSample=" + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.above())
+                            + " chunkLightCorrect=" + (chunk == null ? "not_loaded" : chunk.isLightCorrect()));
+        }).thenExecute(() -> {
+            System.out.println("Native bush light ready: normalizedRates pos=" + pos + " lightPos=" + lightPos
+                    + " lightState=" + level.getBlockState(lightPos) + " brightnessAbove=" + level.getRawBrightness(pos.above(), 0)
+                    + " blockAtSample=" + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.above())
+                    + " cropState=" + level.getBlockState(pos) + " soilState=" + level.getBlockState(pos.below()));
             for (String id : WildBushes.BLOCKS) {
+                h.assertTrue(level.getRawBrightness(pos.above(), 0) >= 9, "Native growth light prerequisite lost before " + id);
                 var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation(id));
                 if (block == null || block == Blocks.AIR) continue;
                 var ripe = WildBushes.mature(block.defaultBlockState());
                 var age = (IntegerProperty)ripe.getProperties().stream().filter(p -> p.getName().equals("age")).findFirst().orElseThrow();
                 level.setBlock(pos, ripe, 2);
                 ripe.use(level, player, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
-                take(level, pos); // Initial ripe stock is explicitly outside renewable-rate accounting.
+                int initialHarvest = take(level, pos); // Initial ripe stock remains outside renewable-rate accounting.
+                var reset = level.getBlockState(pos);
+                int initialLight = level.getRawBrightness(pos.above(), 0);
+                h.assertTrue(initialHarvest > 0 && reset.is(block) && reset.getValue(age) < ripe.getValue(age),
+                        "Native initial harvest/reset prerequisite failed " + id + " harvested=" + initialHarvest
+                                + " reset=" + reset + " lightAbove=" + initialLight);
+                if (id.equals("ars_nouveau:sourceberry_bush")) {
+                    h.assertTrue(initialLight >= 9, "Native Ars growth requires light above >=9, actual=" + initialLight
+                            + " reset=" + reset + " initialHarvest=" + initialHarvest);
+                }
                 var random = net.minecraft.util.RandomSource.create(0xBE77);
                 int output = 0, trials = 50_000;
                 for (int i = 0; i < trials; i++) {
@@ -54,17 +79,20 @@ public final class ProductionGameTests {
                         output += take(level, pos);
                     }
                 }
+                h.assertTrue(level.getRawBrightness(pos.above(), 0) >= 9, "Native growth light prerequisite lost after " + id);
                 double yield = id.startsWith("fruitsdelight:") ? 1.5 : 2.5;
                 double expected = trials * ProductionRates.bushGrowthChance(id) / 2 * yield;
                 h.assertTrue(Math.abs(output - expected) < expected * .2,
-                        "Native renewable output outside statistical band " + id + " expected=" + expected + " actual=" + output);
+                        "Native renewable output outside statistical band " + id + " expected=" + expected + " actual=" + output
+                                + " initialHarvest=" + initialHarvest + " reset=" + reset + " initialLightAbove=" + initialLight
+                                + " finalState=" + level.getBlockState(pos) + " finalLightAbove=" + level.getRawBrightness(pos.above(), 0)
+                                + " lightPos=" + lightPos + " lightState=" + level.getBlockState(lightPos));
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
             }
             // A season/other-mod veto must remain authoritative, as must explicit growth boosts.
             var hooks = new WildFruitTreesHooks();
             hooks.check(h, level, pos);
-            h.succeed();
-        });
+        }).thenSucceed();
     }
 
     private static int take(net.minecraft.server.level.ServerLevel level, BlockPos pos) {

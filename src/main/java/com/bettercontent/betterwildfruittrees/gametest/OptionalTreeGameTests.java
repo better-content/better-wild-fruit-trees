@@ -55,29 +55,41 @@ public final class OptionalTreeGameTests {
             new com.mojang.authlib.GameProfile(UUID.randomUUID(), "WildTreeGate"));
         player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(level.getServer(),
             new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), player);
-        try {
-            var selected = present(h);
-            NativeGrowthKitChecks.verify(h, !selected.isEmpty());
-            for (String id : selected) {
-                root(h, id, root); var tree = species(id); var trunk = root.above();
-                h.assertTrue(tree.getSignalEnergy() == WildFruitPolicy.policy(id).energy(), "Native energy policy missing " + id);
-                h.assertTrue(LoadedTreeLookup.isProtected(level, trunk), "Exact root protection missing " + id);
-                h.assertTrue(level.getBlockState(trunk).getDestroySpeed(level, trunk) >= 80, "Native hardness floor missing " + id);
-                h.assertTrue(!tree.plantSapling(level, root.east(2), true), "Force planting bypass " + id);
-                h.assertTrue(tree.getPrimitiveSaplingRecipes().isEmpty(), "Primitive conversion survived " + id);
-                tree.getSeed().ifPresent(seed -> {
-                    h.assertTrue(!seed.shouldPlant(level, root.east(2), new ItemStack(seed)), "Automatic planting bypass " + id);
-                    h.assertTrue(seed.getPlant(level, root.east(2)).isAir(), "Machine planting bypass " + id);
-                });
-                player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_AXE));
-                h.assertTrue(level.getBlockState(trunk).getDestroyProgress(player, level, trunk) == 0, "Unsuitable native mining progress " + id);
-                h.assertTrue(!player.gameMode.destroyBlock(trunk), "Real player removed protected trunk with iron " + id);
-                player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
-                h.assertTrue(player.gameMode.destroyBlock(trunk), "Diamond native removal denied " + id);
-                clear(h, root);
-            }
-            h.succeed();
-        } finally { clear(h, root); }
+        var selected = present(h);
+        NativeGrowthKitChecks.verify(h, !selected.isEmpty());
+        var sequence = h.startSequence();
+        for (String id : selected) {
+            sequence.thenExecute(() -> {
+                try {
+                    root(h, id, root); var tree = species(id); var trunk = root.above();
+                    h.assertTrue(tree.getSignalEnergy() == WildFruitPolicy.policy(id).energy(), "Native energy policy missing " + id);
+                    h.assertTrue(LoadedTreeLookup.isProtected(level, trunk), "Exact root protection missing " + id);
+                    h.assertTrue(level.getBlockState(trunk).getDestroySpeed(level, trunk) >= 80, "Native hardness floor missing " + id);
+                    h.assertTrue(!tree.plantSapling(level, root.east(2), true), "Force planting bypass " + id);
+                    h.assertTrue(tree.getPrimitiveSaplingRecipes().isEmpty(), "Primitive conversion survived " + id);
+                    tree.getSeed().ifPresent(seed -> {
+                        h.assertTrue(!seed.shouldPlant(level, root.east(2), new ItemStack(seed)), "Automatic planting bypass " + id);
+                        h.assertTrue(seed.getPlant(level, root.east(2)).isAir(), "Machine planting bypass " + id);
+                    });
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_AXE));
+                    h.assertTrue(level.getBlockState(trunk).getDestroyProgress(player, level, trunk) == 0, "Unsuitable native mining progress " + id);
+                    h.assertTrue(!player.gameMode.destroyBlock(trunk), "Real player removed protected trunk with iron " + id);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
+                    h.assertTrue(player.gameMode.destroyBlock(trunk), "Diamond native removal denied " + id);
+                } catch (RuntimeException | Error failure) {
+                    clear(h, root);
+                    throw failure;
+                }
+            }).thenIdle(2).thenExecute(() -> {
+                // Native DT queues FutureBreak; preserve the tree until real level ticks process it.
+                try {
+                    h.assertTrue(level.isEmptyBlock(root.above()), "Actual deferred diamond felling failed " + id);
+                } finally {
+                    clear(h, root);
+                }
+            });
+        }
+        sequence.thenSucceed();
     }
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void edibleProductsSurviveLootAndMatureHarvestIncludesFallingCoconut(GameTestHelper h) {

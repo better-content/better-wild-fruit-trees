@@ -30,14 +30,30 @@ public final class WildBushGameTests {
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void bushHarvestRegrowthAndFixedGeometry(GameTestHelper h) {
         var level = h.getLevel();
-        var pos = h.absolutePos(new BlockPos(3, 2, 3));
+        // Use the existing native marker's illuminated corner; do not alter marker/structure blocks.
+        var pos = h.absolutePos(new BlockPos(0, 1, 1));
         var player = FakePlayerFactory.getMinecraft(level);
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         level.setBlock(pos.below(), Blocks.GRASS_BLOCK.defaultBlockState(), 2);
-        level.setBlock(pos.above(2), Blocks.LIGHT.defaultBlockState(), 3);
-        // Native light propagation is asynchronous; do not confuse an unlit fixture with growth failure.
-        h.runAfterDelay(10, () -> {
+        // Observe actual native marker illumination within the existing test deadline.
+        var lightPos = h.absolutePos(new BlockPos(-1, -1, -1));
+        h.startSequence().thenWaitUntil(() -> {
+            var lightState = level.getBlockState(lightPos);
+            var chunk = level.getChunkSource().getChunkNow(lightPos.getX() >> 4, lightPos.getZ() >> 4);
+            h.assertTrue(level.getRawBrightness(pos.above(), 0) >= 9,
+                    "Waiting for native bush light >=9 at " + pos.above() + " actual=" + level.getRawBrightness(pos.above(), 0)
+                            + " lightPos=" + lightPos + " lightState=" + lightState
+                            + " cachedEmission=" + lightState.getLightEmission() + " contextualEmission=" + lightState.getLightEmission(level, lightPos)
+                            + " blockAtSource=" + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, lightPos)
+                            + " blockAtSample=" + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.above())
+                            + " chunkLightCorrect=" + (chunk == null ? "not_loaded" : chunk.isLightCorrect()));
+        }).thenExecute(() -> {
+        System.out.println("Native bush light ready: harvestRegrowth pos=" + pos + " lightPos=" + lightPos
+                + " lightState=" + level.getBlockState(lightPos) + " brightnessAbove=" + level.getRawBrightness(pos.above(), 0)
+                + " blockAtSample=" + level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.above())
+                + " cropState=" + level.getBlockState(pos) + " soilState=" + level.getBlockState(pos.below()));
         for (String id : WildBushes.BLOCKS) {
+            h.assertTrue(level.getRawBrightness(pos.above(), 0) >= 9, "Native growth light prerequisite lost before " + id);
             var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation(id));
             if (block == null || block == Blocks.AIR) { h.assertTrue(id.startsWith("ars_nouveau:"), "Missing mandatory bush"); continue; }
             var mature = WildBushes.mature(block.defaultBlockState());
@@ -58,16 +74,18 @@ public final class WildBushGameTests {
             h.assertTrue(yield >= 1 && yield <= 3, "Native aggregate balancing changed per-bush yield " + id + " count=" + yield);
             for (int i = 0; i < 5000 && level.getBlockState(pos).getValue(age) < mature.getValue(age); i++)
                 block.randomTick(level.getBlockState(pos), level, pos, net.minecraft.util.RandomSource.create(i));
-            h.assertTrue(level.getBlockState(pos).equals(mature), "Native random fruit ripening failed " + id);
+            h.assertTrue(level.getBlockState(pos).equals(mature), "Native random fruit ripening failed " + id
+                    + " lightAbove=" + level.getRawBrightness(pos.above(), 0) + " lightPos=" + lightPos
+                    + " lightState=" + level.getBlockState(lightPos) + " finalState=" + level.getBlockState(pos));
             level.setBlock(pos, picked, 2);
             var grower = (net.minecraft.world.level.block.BonemealableBlock)block;
             for (int i = 0; i < 5 && level.getBlockState(pos).getValue(age) < mature.getValue(age); i++)
                 grower.performBonemeal(level, level.random, pos, level.getBlockState(pos));
             h.assertTrue(level.getBlockState(pos).equals(mature), "Native fruit regrowth failed " + id);
+            h.assertTrue(level.getRawBrightness(pos.above(), 0) >= 9, "Native growth light prerequisite lost after " + id);
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
         }
-        h.succeed();
-        });
+        }).thenSucceed();
     }
 
     @GameTest(template = "empty", timeoutTicks = 100)
